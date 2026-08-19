@@ -33,8 +33,16 @@ export default async function NouveauRendezVousPage() {
     );
   }
 
+  // Le client ne voit que les centres de l'enseigne qui distribue la marque de son véhicule :
+  // un propriétaire de Ford ne se voit pas proposer un atelier Peugeot.
+  const marquesClient = [...new Set(client.vehicules.map((v) => v.marqueId))];
+
   const [sites, services] = await Promise.all([
-    prisma.site.findMany({ orderBy: { ville: "asc" } }),
+    prisma.site.findMany({
+      where: { marques: { some: { marqueId: { in: marquesClient } } } },
+      include: { compagnie: true },
+      orderBy: [{ ville: "asc" }, { nom: "asc" }],
+    }),
     prisma.serviceType.findMany({ orderBy: { nom: "asc" } }),
   ]);
 
@@ -48,7 +56,14 @@ export default async function NouveauRendezVousPage() {
       </div>
       <BookingWizard
         vehicules={client.vehicules.map((v) => ({ id: v.id, label: `${v.marque.nom} ${v.modele} — ${v.immatriculation}` }))}
-        sites={sites.map((s) => ({ id: s.id, nom: s.nom, ville: s.ville }))}
+        sites={sites.map((s) => ({
+          id: s.id,
+          nom: s.nom,
+          ville: s.ville,
+          compagnie: s.compagnie.nom,
+          latitude: s.latitude,
+          longitude: s.longitude,
+        }))}
         services={services.map((s) => ({ id: s.id, code: s.code, nom: s.nom, description: s.description }))}
       />
     </div>

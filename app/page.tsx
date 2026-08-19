@@ -51,28 +51,11 @@ const STEPS = [
   },
 ];
 
-// Photos du réseau après-vente Auto Hall (source : autohall.ma, rubrique Service Après-Vente)
-const METIERS = [
-  {
-    src: "/images/entretien.jpg",
-    titre: "Entretien",
-    texte: "Révisions périodiques, vidange et filtration par des techniciens certifiés.",
-  },
-  {
-    src: "/images/mecanique.jpg",
-    titre: "Mécanique & électricité",
-    texte: "Diagnostic électronique et réparation mécanique sur outillage constructeur.",
-  },
-  {
-    src: "/images/carrosserie.jpg",
-    titre: "Carrosserie",
-    texte: "Tôlerie, peinture et lustrage, avec prise en charge des dossiers assurance.",
-  },
-  {
-    src: "/images/pieces-rechange.jpg",
-    titre: "Pièces de rechange",
-    texte: "Pièces d'origine disponibles au comptoir ou commandées sur référence.",
-  },
+const ENGAGEMENTS = [
+  "Diagnostic avant devis, jamais l'inverse",
+  "Devis détaillé validé par vous, à distance",
+  "Contrôle qualité tracé avant chaque restitution",
+  "Pièces d'origine et garantie constructeur respectée",
 ];
 
 const AVIS = [
@@ -162,8 +145,8 @@ export default function LandingPage() {
 
         <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl shadow-lg lg:aspect-[3/2]">
           <Image
-            src="/images/sav-hero.jpg"
-            alt="Technicien réalisant un diagnostic électronique à bord d'un véhicule"
+            src="/images/atelier.jpg"
+            alt="Atelier de service après-vente moderne, véhicules sur ponts élévateurs"
             fill
             priority
             sizes="(max-width: 1024px) 100vw, 45vw"
@@ -232,32 +215,38 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Métiers en photos */}
+      {/* Engagements atelier */}
       <section className="mx-auto max-w-6xl px-5 py-16 sm:px-8">
-        <span className="mb-2 block text-xs font-semibold tracking-wide text-accent-600 uppercase">
-          Nos métiers
-        </span>
-        <h2 className="mb-8 text-2xl font-extrabold text-primary-900 sm:text-3xl">
-          Des ateliers équipés, des techniciens certifiés
-        </h2>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {METIERS.map((m) => (
-            <figure key={m.titre} className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
-              <div className="relative aspect-[4/3]">
-                <Image
-                  src={m.src}
-                  alt={m.titre}
-                  fill
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                  className="object-cover"
-                />
-              </div>
-              <figcaption className="p-4">
-                <p className="text-sm font-semibold text-foreground">{m.titre}</p>
-                <p className="mt-1 text-xs text-muted">{m.texte}</p>
-              </figcaption>
-            </figure>
-          ))}
+        <div className="grid items-center gap-10 lg:grid-cols-2">
+          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl shadow-sm">
+            <Image
+              src="/images/entretien.jpg"
+              alt="Technicien réalisant l'entretien du moteur d'un véhicule"
+              fill
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              className="object-cover"
+            />
+          </div>
+          <div>
+            <span className="mb-2 block text-xs font-semibold tracking-wide text-accent-600 uppercase">
+              Nos engagements
+            </span>
+            <h2 className="mb-4 text-2xl font-extrabold text-primary-900 sm:text-3xl">
+              Des techniciens certifiés, une intervention sans surprise
+            </h2>
+            <p className="mb-5 max-w-lg text-sm text-muted">
+              Chaque véhicule suit le même parcours tracé, de la réception à la restitution.
+              Vous savez ce qui est fait, pourquoi, et à quel prix.
+            </p>
+            <ul className="space-y-2.5">
+              {ENGAGEMENTS.map((e) => (
+                <li key={e} className="flex items-start gap-2 text-sm text-foreground">
+                  <ShieldCheck size={16} className="mt-0.5 shrink-0 text-accent-500" />
+                  {e}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </section>
 
@@ -288,11 +277,14 @@ export default function LandingPage() {
                 et bien d&apos;autres villes
               </span>
             </div>
+            <Button asChild variant="accent" className="mt-6">
+              <Link href="/centres">Trouver le centre le plus proche</Link>
+            </Button>
           </div>
           <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-border shadow-sm">
             <Image
-              src="/images/atelier-tanger.jpg"
-              alt="Centre de service après-vente du réseau, façade et parvis"
+              src="/images/showroom.jpg"
+              alt="Hall d'exposition d'une concession automobile moderne"
               fill
               sizes="(max-width: 1024px) 100vw, 58vw"
               className="object-cover"

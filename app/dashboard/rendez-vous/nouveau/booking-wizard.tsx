@@ -6,9 +6,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label, Select, Textarea } from "@/components/ui/input";
 import { formatDate } from "@/lib/utils";
+import { trierParDistance, formatDistance } from "@/lib/geo";
+import { Navigation } from "lucide-react";
 
 type Vehicule = { id: string; label: string };
-type Site = { id: string; nom: string; ville: string };
+type Site = {
+  id: string;
+  nom: string;
+  ville: string;
+  compagnie: string;
+  latitude: number | null;
+  longitude: number | null;
+};
 type ServiceType = { id: string; code: string; nom: string; description: string | null };
 
 export function BookingWizard({
@@ -33,6 +42,25 @@ export function BookingWizard({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ statut: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [maPosition, setMaPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoRefusee, setGeoRefusee] = useState(false);
+
+  // Les centres sont reclassés par éloignement dès que le client partage sa position.
+  const sitesAffiches = maPosition
+    ? trierParDistance(sites, maPosition.lat, maPosition.lng)
+    : sites.map((s) => ({ ...s, distanceKm: null as number | null }));
+
+  function localiserMoi() {
+    if (!("geolocation" in navigator)) {
+      setGeoRefusee(true);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setMaPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => setGeoRefusee(true),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+    );
+  }
 
   async function ouvrirEtapeCreneaux() {
     setStep(3);
@@ -141,9 +169,22 @@ export function BookingWizard({
 
         {step === 2 && (
           <div className="space-y-4">
-            <Label>Centre Auto360</Label>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {sites.map((s) => (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label>Centre de service</Label>
+              {!maPosition && !geoRefusee && (
+                <button
+                  type="button"
+                  onClick={localiserMoi}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-accent-600"
+                >
+                  <Navigation size={13} /> Trier par proximité
+                </button>
+              )}
+              {maPosition && <span className="text-xs text-muted">Classés par distance</span>}
+              {geoRefusee && <span className="text-xs text-muted">Localisation indisponible</span>}
+            </div>
+            <div className="grid max-h-[420px] gap-2 overflow-y-auto sm:grid-cols-2">
+              {sitesAffiches.map((s) => (
                 <button
                   type="button"
                   key={s.id}
@@ -152,8 +193,17 @@ export function BookingWizard({
                     siteId === s.id ? "border-primary-700 bg-primary-50" : "border-border"
                   }`}
                 >
-                  <p className="font-medium">{s.nom}</p>
-                  <p className="text-xs text-muted">{s.ville}</p>
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium">{s.nom}</p>
+                    {s.distanceKm != null && (
+                      <span className="shrink-0 text-xs font-medium text-accent-600">
+                        {formatDistance(s.distanceKm)}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted">
+                    {s.ville} · {s.compagnie}
+                  </p>
                 </button>
               ))}
             </div>

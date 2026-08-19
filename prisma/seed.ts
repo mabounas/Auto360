@@ -10,6 +10,7 @@ import {
   SegmentVehiculeForfait,
 } from "../app/generated/prisma/client";
 import bcrypt from "bcryptjs";
+import { COMPAGNIES, TOUTES_LES_MARQUES } from "./data/compagnies";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -21,34 +22,83 @@ async function hash(pw: string) {
 async function main() {
   console.log("Seed Auto360 — démarrage…");
 
-  // --- Marques -------------------------------------------------------
-  const marquesNoms = ["Renault", "Dacia", "Peugeot", "Fiat", "Mercedes-Benz", "Ford"];
-  const marques = await Promise.all(
-    marquesNoms.map((nom) => prisma.marque.upsert({ where: { nom }, create: { nom }, update: {} }))
-  );
-
-  // --- Sites -----------------------------------------------------------
-  const sitesData = [
-    { code: "CASA01", nom: "Auto360 Casablanca Ain Sebaâ", ville: "Casablanca", adresse: "Route de Rabat, Ain Sebaâ" },
-    { code: "RAB01", nom: "Auto360 Rabat Agdal", ville: "Rabat", adresse: "Avenue Fal Ould Oumeir, Agdal" },
-    { code: "MARK01", nom: "Auto360 Marrakech Sidi Ghanem", ville: "Marrakech", adresse: "Zone Sidi Ghanem" },
-  ];
-  const sites = [];
-  for (const s of sitesData) {
-    const site = await prisma.site.upsert({
-      where: { code: s.code },
-      create: { ...s, telephone: "+212 5 22 00 00 00", certifieIso: true, horaires: { "lun-ven": "08:00-18:00", sam: "09:00-13:00" } },
-      update: {},
-    });
-    sites.push(site);
-    for (const marque of marques) {
-      await prisma.siteMarque.upsert({
-        where: { siteId_marqueId: { siteId: site.id, marqueId: marque.id } },
-        create: { siteId: site.id, marqueId: marque.id },
-        update: {},
-      });
-    }
+  // --- Marques (réelles, dérivées des réseaux chargés) ------------------
+  const marqueParNom = new Map<string, { id: string }>();
+  for (const nom of TOUTES_LES_MARQUES) {
+    const m = await prisma.marque.upsert({ where: { nom }, create: { nom }, update: {} });
+    marqueParNom.set(nom, m);
   }
+
+  // --- Compagnies et leurs points de service, avec coordonnées GPS ------
+  const sites = [];
+  for (const c of COMPAGNIES) {
+    const compagnie = await prisma.compagnie.upsert({
+      where: { code: c.code },
+      create: { code: c.code, nom: c.nom, description: c.description, couleur: c.couleur },
+      update: { nom: c.nom, description: c.description, couleur: c.couleur },
+    });
+
+    for (const s of c.sites) {
+      const site = await prisma.site.upsert({
+        where: { code: s.code },
+        create: {
+          code: s.code,
+          compagnieId: compagnie.id,
+          nom: s.nom,
+          ville: s.ville,
+          adresse: s.adresse,
+          telephone: s.telephone,
+          latitude: s.latitude,
+          longitude: s.longitude,
+          certifieIso: c.code === "AUTOHALL",
+          horaires: { "lun-ven": "08:00-18:00", sam: "09:00-13:00" },
+        },
+        update: {
+          compagnieId: compagnie.id,
+          nom: s.nom,
+          ville: s.ville,
+          adresse: s.adresse,
+          telephone: s.telephone,
+          latitude: s.latitude,
+          longitude: s.longitude,
+        },
+      });
+      sites.push(site);
+
+      for (const nomMarque of s.marques) {
+        const marque = marqueParNom.get(nomMarque);
+        if (!marque) continue;
+        await prisma.siteMarque.upsert({
+          where: { siteId_marqueId: { siteId: site.id, marqueId: marque.id } },
+          create: { siteId: site.id, marqueId: marque.id },
+          update: {},
+        });
+      }
+    }
+    console.log(`  ${c.nom} : ${c.sites.length} points de service`);
+  }
+
+  // Le référentiel réseau fait autorité : on retire les sites hérités d'un jeu de
+  // démonstration antérieur, sauf s'ils portent déjà des dossiers atelier.
+  const codesConnus = COMPAGNIES.flatMap((c) => c.sites.map((s) => s.code));
+  const obsoletes = await prisma.site.findMany({
+    where: { code: { notIn: codesConnus } },
+    include: { _count: { select: { ordresReparation: true, rendezVous: true } } },
+  });
+  for (const site of obsoletes) {
+    if (site._count.ordresReparation > 0 || site._count.rendezVous > 0) {
+      console.log(`  ↷ ${site.code} conservé (dossiers existants)`);
+      continue;
+    }
+    await prisma.site.delete({ where: { id: site.id } });
+    console.log(`  ✕ ${site.code} supprimé (site de démonstration obsolète)`);
+  }
+
+  // Marques devenues orphelines après nettoyage
+  const orphelines = await prisma.marque.deleteMany({
+    where: { sites: { none: {} }, vehicules: { none: {} } },
+  });
+  if (orphelines.count > 0) console.log(`  ✕ ${orphelines.count} marque(s) sans site supprimée(s)`);
 
   // --- Options de service ----------------------------------------------
   const serviceDefs: { code: CodeService; nom: string; description: string; duree: number }[] = [
@@ -196,13 +246,13 @@ async function main() {
     });
   }
 
-  const renault = marques.find((m) => m.nom === "Renault")!;
+  const ford = marqueParNom.get("Ford")!;
   await prisma.vehicule.upsert({
     where: { vin: "VF1RJA00012345678" },
     create: {
       clientId: clientProfile.id,
-      marqueId: renault.id,
-      modele: "Clio V",
+      marqueId: ford.id,
+      modele: "Focus",
       vin: "VF1RJA00012345678",
       immatriculation: "12345-A-6",
       dateMiseCirculation: new Date("2022-03-15"),

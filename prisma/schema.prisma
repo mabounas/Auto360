@@ -93,21 +93,37 @@ model ClientProfile {
 }
 
 // ---------------------------------------------------------------------------
-// Sites, marques (§4.13 Multi-site, multi-marque)
+// Compagnies, sites, marques (§4.13 Multi-site, multi-marque)
 // ---------------------------------------------------------------------------
 
-model Site {
+// Enseigne exploitant un réseau de points de service (groupe de distribution ou
+// réseau de marque). C'est le niveau de cloisonnement le plus haut : un déploiement
+// unique peut servir plusieurs compagnies, chacune ne voyant que son propre réseau.
+model Compagnie {
   id          String   @id @default(cuid())
-  code        String   @unique // ex: CASA01 — utilisé pour numéroter les OR/factures
+  code        String   @unique // ex: AUTOHALL
+  nom         String
+  description String?
+  couleur     String? // couleur d'accent de l'enseigne (hex)
+  createdAt   DateTime @default(now())
+
+  sites Site[]
+}
+
+model Site {
+  id          String    @id @default(cuid())
+  code        String    @unique // ex: CASA01 — utilisé pour numéroter les OR/factures
+  compagnieId String
+  compagnie   Compagnie @relation(fields: [compagnieId], references: [id], onDelete: Cascade)
   nom         String
   ville       String
   adresse     String
   telephone   String?
   latitude    Float?
   longitude   Float?
-  certifieIso Boolean  @default(false)
+  certifieIso Boolean   @default(false)
   horaires    Json? // { "lun-ven": "08:00-18:00", "sam": "09:00-13:00" }
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
   marques           SiteMarque[]
   users             User[]
@@ -117,6 +133,9 @@ model Site {
   disponibilites    DisponibiliteConfig[]
   avis              AvisClient[]
   compteurs         SiteCompteur[]
+
+  @@index([compagnieId])
+  @@index([ville])
 }
 
 model Marque {

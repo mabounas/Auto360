@@ -45,4 +45,15 @@ export const SERVICE_TYPES: {
   },
 ];
 
-export const VILLES_COUVERTES = ["Casablanca", "Rabat", "Marrakech", "Tanger", "Agadir", "Fès"];
+// Villes mises en avant sur la page d'accueil. La liste exhaustive vient de la base
+// (page /centres) ; celle-ci ne sert qu'à donner un aperçu de la couverture.
+export const VILLES_COUVERTES = [
+  "Casablanca",
+  "Rabat",
+  "Marrakech",
+  "Tanger",
+  "Agadir",
+  "Fès",
+  "Oujda",
+  "Meknès",
+];

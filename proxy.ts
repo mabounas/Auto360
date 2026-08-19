@@ -6,6 +6,10 @@ import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth";
 // vers le tableau de bord si l'utilisateur est déjà connecté.
 const PUBLIC_ONLY_WHEN_LOGGED_OUT = ["/login", "/register"];
 
+// Pages et API accessibles sans compte : le localisateur d'ateliers doit fonctionner
+// pour un visiteur qui n'a pas encore d'espace client.
+const TOUJOURS_PUBLIC = ["/centres", "/api/centres"];
+
 const STATIC_FILE_PATTERN = /\.[a-zA-Z0-9]+$/;
 
 export async function proxy(request: NextRequest) {
@@ -18,7 +22,7 @@ export async function proxy(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const session = token ? await verifySessionToken(token) : null;
 
-  if (pathname === "/") {
+  if (pathname === "/" || TOUJOURS_PUBLIC.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 

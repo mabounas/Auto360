@@ -6,11 +6,11 @@ import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const LINKS = [
-  { href: "#services", label: "Services" },
-  { href: "#comment-ca-marche", label: "Comment ça marche" },
-  { href: "#centres", label: "Nos centres" },
-  { href: "#avis", label: "Avis" },
-  { href: "#faq", label: "FAQ" },
+  { href: "/#services", label: "Services" },
+  { href: "/#comment-ca-marche", label: "Comment ça marche" },
+  { href: "/centres", label: "Nos centres" },
+  { href: "/#avis", label: "Avis" },
+  { href: "/#faq", label: "FAQ" },
 ];
 
 export function MarketingNav() {
