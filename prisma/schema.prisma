@@ -1,0 +1,592 @@
+// Auto360 — schéma de données MVP (sous-ensemble du Cahier des Charges CRM & SAV Automobile)
+// Multi-site / multi-marque par colonne siteId / marqueId (pas de schéma-par-tenant,
+// pour rester compatible avec le pooling serverless de Neon/Vercel — même approche que Syndic360).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Utilisateurs & RBAC (§3 Acteurs et utilisateurs cibles)
+// ---------------------------------------------------------------------------
+
+enum Role {
+  CLIENT
+  CENTRE_APPEL
+  RECEPTIONNAIRE
+  TECHNICIEN
+  CHEF_ATELIER
+  GESTIONNAIRE_PIECES
+  PRICING
+  RESPONSABLE_SAV
+  DIRECTION_GROUPE
+  ADMIN
+}
+
+enum TypeClient {
+  PARTICULIER
+  ENTREPRISE
+}
+
+enum SegmentClient {
+  STANDARD
+  VIP
+  FLOTTE
+  RISQUE_CHURN
+}
+
+enum PreferenceContact {
+  SMS
+  EMAIL
+  WHATSAPP
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  telephone    String?
+  passwordHash String
+  role         Role
+  nom          String
+  prenom       String
+  actif        Boolean  @default(true)
+  siteId       String? // staff rattaché à un site ; null = accès multi-site (direction/admin/centre d'appel)
+  site         Site?    @relation(fields: [siteId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  clientProfile        ClientProfile?
+  orClotures            OrdreReparation[]      @relation("ORChefEquipe")
+  lignesIntervention    LigneIntervention[]
+  diagnostics           DiagnosticRapport[]
+  devisEtablis           Devis[]
+  reclamationsAssignees Reclamation[]
+
+  @@index([role])
+  @@index([siteId])
+}
+
+model ClientProfile {
+  id                  String            @id @default(cuid())
+  userId              String            @unique
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  typeClient          TypeClient        @default(PARTICULIER)
+  raisonSociale       String?
+  consentementRgpd    Boolean           @default(false)
+  segment             SegmentClient     @default(STANDARD)
+  preferenceContact   PreferenceContact @default(EMAIL)
+  pointsFidelite      Int               @default(0)
+  createdAt           DateTime          @default(now())
+
+  vehicules        Vehicule[]
+  rendezVous       RendezVous[]
+  ordresReparation OrdreReparation[]
+  factures         Facture[]
+  reclamations     Reclamation[]
+  enquetes         EnqueteSatisfaction[]
+  avis             AvisClient[]
+}
+
+// ---------------------------------------------------------------------------
+// Sites, marques (§4.13 Multi-site, multi-marque)
+// ---------------------------------------------------------------------------
+
+model Site {
+  id          String   @id @default(cuid())
+  code        String   @unique // ex: CASA01 — utilisé pour numéroter les OR/factures
+  nom         String
+  ville       String
+  adresse     String
+  telephone   String?
+  latitude    Float?
+  longitude   Float?
+  certifieIso Boolean  @default(false)
+  horaires    Json? // { "lun-ven": "08:00-18:00", "sam": "09:00-13:00" }
+  createdAt   DateTime @default(now())
+
+  marques           SiteMarque[]
+  users             User[]
+  vehiculesStock    StockPiece[]
+  rendezVous        RendezVous[]
+  ordresReparation  OrdreReparation[]
+  disponibilites    DisponibiliteConfig[]
+  avis              AvisClient[]
+  compteurs         SiteCompteur[]
+}
+
+model Marque {
+  id       String       @id @default(cuid())
+  nom      String       @unique
+  sites    SiteMarque[]
+  vehicules Vehicule[]
+  rappels  RappelConstructeur[]
+}
+
+model SiteMarque {
+  siteId   String
+  marqueId String
+  site     Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  marque   Marque @relation(fields: [marqueId], references: [id], onDelete: Cascade)
+
+  @@id([siteId, marqueId])
+}
+
+// Compteur séquentiel par site, utilisé pour générer les numéros d'OR / factures (ex: OR-CASA01-000123)
+model SiteCompteur {
+  id      String @id @default(cuid())
+  siteId  String
+  site    Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  type    String // "OR" | "FACTURE"
+  valeur  Int    @default(0)
+
+  @@unique([siteId, type])
+}
+
+// ---------------------------------------------------------------------------
+// Véhicules & carnet d'entretien (§4.1)
+// ---------------------------------------------------------------------------
+
+model Vehicule {
+  id                  String    @id @default(cuid())
+  clientId            String
+  client              ClientProfile @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  marqueId            String
+  marque              Marque    @relation(fields: [marqueId], references: [id])
+  modele              String
+  vin                 String    @unique
+  immatriculation     String    @unique
+  dateMiseCirculation DateTime?
+  kilometrage         Int       @default(0)
+  garantieFin         DateTime?
+  createdAt           DateTime  @default(now())
+
+  rendezVous       RendezVous[]
+  ordresReparation OrdreReparation[]
+  rappelsConcernes VehiculeRappelConcerne[]
+
+  @@index([clientId])
+}
+
+// ---------------------------------------------------------------------------
+// Options de service & disponibilité (§4.2 Prise de rendez-vous atelier)
+// ---------------------------------------------------------------------------
+
+enum CodeService {
+  DIAGNOSTIC
+  ENTRETIEN_REVISION
+  MECANIQUE_ELECTRICITE
+  CLIMATISATION_CONFORT
+  PNEUMATIQUE
+  CARROSSERIE_ESTHETIQUE
+  CONTROLE_TECHNIQUE
+  PIECES_RECHANGE
+}
+
+model ServiceType {
+  id               String      @id @default(cuid())
+  code             CodeService @unique
+  nom              String
+  description      String?
+  dureeEstimeeMin  Int         @default(60)
+
+  disponibilites   DisponibiliteConfig[]
+  rendezVous       RendezVous[]
+  forfaits         Forfait[]
+}
+
+// Une ligne = un créneau récurrent (site + service + jour de semaine) avec sa propre capacité,
+// pour permettre un calendrier de disponibilité indépendant par option de service (§4.2).
+model DisponibiliteConfig {
+  id                  String      @id @default(cuid())
+  siteId              String
+  site                Site        @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  serviceTypeId       String
+  serviceType         ServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Cascade)
+  jourSemaine         Int // 0 = dimanche ... 6 = samedi
+  heureDebut          String // "08:00"
+  heureFin            String // "18:00"
+  dureeCreneauMin     Int         @default(30)
+  capaciteParCreneau  Int         @default(1)
+
+  @@unique([siteId, serviceTypeId, jourSemaine])
+}
+
+enum StatutRdv {
+  CONFIRME
+  LISTE_ATTENTE
+  ANNULE
+  REALISE
+  NO_SHOW
+}
+
+enum CanalRdv {
+  WEB
+  MOBILE
+  TELEPHONE
+  AGENCE
+}
+
+model RendezVous {
+  id            String      @id @default(cuid())
+  clientId      String
+  client        ClientProfile @relation(fields: [clientId], references: [id])
+  vehiculeId    String
+  vehicule      Vehicule    @relation(fields: [vehiculeId], references: [id])
+  siteId        String
+  site          Site        @relation(fields: [siteId], references: [id])
+  serviceTypeId String
+  serviceType   ServiceType @relation(fields: [serviceTypeId], references: [id])
+  dateHeure     DateTime
+  statut        StatutRdv   @default(CONFIRME)
+  canal         CanalRdv    @default(WEB)
+  motif         String?
+  createdAt     DateTime    @default(now())
+
+  ordreReparation OrdreReparation?
+
+  @@index([siteId, serviceTypeId, dateHeure])
+}
+
+// ---------------------------------------------------------------------------
+// Diagnostic (§4.2bis)
+// ---------------------------------------------------------------------------
+
+model DiagnosticRapport {
+  id                  String    @id @default(cuid())
+  ordreReparationId   String    @unique
+  ordreReparation     OrdreReparation @relation(fields: [ordreReparationId], references: [id], onDelete: Cascade)
+  technicienId        String
+  technicien          User      @relation(fields: [technicienId], references: [id])
+  dateRealisation     DateTime  @default(now())
+  mesures             Json? // { moteur: "...", freinage: "...", direction: "...", niveaux: "...", pneumatiques: "...", electrique: "..." }
+  anomaliesConstatees String?
+  piecesARemplacer    String? // liste libre transmise au pricing (nom + réf indicative)
+  photosUrls          String[]
+  transmisPricingAt   DateTime?
+
+  @@index([technicienId])
+}
+
+// ---------------------------------------------------------------------------
+// Ordres de réparation, devis, forfaits (§4.3, §4.6bis, §4.15)
+// ---------------------------------------------------------------------------
+
+enum MotifVisite {
+  ENTRETIEN_PERIODIQUE
+  DIAGNOSTIC_PANNE
+  CARROSSERIE
+}
+
+enum EquipeAtelier {
+  MECANIQUE_GENERALE
+  REVISION
+  CARROSSERIE
+}
+
+enum StatutOR {
+  ACCUEIL
+  DIAGNOSTIC_EN_COURS
+  DEVIS_EN_ATTENTE
+  DEVIS_VALIDE
+  EN_REPARATION
+  CONTROLE_QUALITE
+  PRET_RESTITUTION
+  RESTITUE
+  CLOTURE
+  ANNULE
+}
+
+model OrdreReparation {
+  id                  String        @id @default(cuid())
+  numero              String        @unique
+  clientId            String
+  client              ClientProfile @relation(fields: [clientId], references: [id])
+  vehiculeId          String
+  vehicule            Vehicule      @relation(fields: [vehiculeId], references: [id])
+  siteId              String
+  site                Site          @relation(fields: [siteId], references: [id])
+  rendezVousId        String?       @unique
+  rendezVous          RendezVous?   @relation(fields: [rendezVousId], references: [id])
+  motifVisite         MotifVisite
+  equipeAtelier       EquipeAtelier?
+  statut              StatutOR      @default(ACCUEIL)
+  etatDesLieuxPhotos  String[]
+  etatDesLieuxNotes   String?
+  creneauRestitution  DateTime?
+  chefEquipeId        String?
+  chefEquipe          User?         @relation("ORChefEquipe", fields: [chefEquipeId], references: [id])
+  controleQualiteOk   Boolean?
+  controleQualiteNote String?
+
+  // Carrosserie / sinistre assurance (§4.6bis) — simplifié en champs plats plutôt qu'un modèle dédié
+  sinistre                     Boolean   @default(false)
+  compagnieAssurance           String?
+  numeroSinistre                String?
+  statutExpertise                String? // EN_ATTENTE | PASSAGE_PROGRAMME | ACCORD_RECU | REFUSE
+  dateExpertise                  DateTime?
+  repartitionAssurancePct        Int? // % pris en charge par l'assurance, le reste au client
+
+  createdAt DateTime  @default(now())
+  clotureAt DateTime?
+
+  diagnostic         DiagnosticRapport?
+  devis              Devis?
+  facture            Facture?
+  lignesIntervention LigneIntervention[]
+  reservationsPieces ReservationPiece[]
+  reclamations       Reclamation[]
+  enqueteSatisfaction EnqueteSatisfaction?
+
+  @@index([siteId, statut])
+  @@index([clientId])
+}
+
+model LigneIntervention {
+  id                String          @id @default(cuid())
+  ordreReparationId String
+  ordreReparation   OrdreReparation @relation(fields: [ordreReparationId], references: [id], onDelete: Cascade)
+  technicienId      String
+  technicien        User            @relation(fields: [technicienId], references: [id])
+  description       String
+  tempsPasseMin     Int             @default(0)
+  createdAt         DateTime        @default(now())
+}
+
+enum StatutDevis {
+  BROUILLON
+  PUBLIE
+  VALIDE
+  REFUSE
+}
+
+model Devis {
+  id                 String          @id @default(cuid())
+  ordreReparationId  String          @unique
+  ordreReparation    OrdreReparation @relation(fields: [ordreReparationId], references: [id], onDelete: Cascade)
+  statut             StatutDevis     @default(BROUILLON)
+  creeParId          String
+  creePar            User            @relation(fields: [creeParId], references: [id])
+  montantHT          Decimal         @default(0) @db.Decimal(10, 2)
+  montantTTC         Decimal         @default(0) @db.Decimal(10, 2)
+  publieAt           DateTime?
+  validationClientAt DateTime?
+  refuseAt           DateTime?
+  createdAt          DateTime        @default(now())
+
+  lignes DevisLigne[]
+}
+
+enum TypeLigneDevis {
+  MAIN_OEUVRE
+  PIECE
+  FORFAIT
+}
+
+model DevisLigne {
+  id             String         @id @default(cuid())
+  devisId        String
+  devis          Devis          @relation(fields: [devisId], references: [id], onDelete: Cascade)
+  type           TypeLigneDevis
+  designation    String
+  quantite       Int            @default(1)
+  prixUnitaireHT Decimal        @db.Decimal(10, 2)
+  tauxTva        Decimal        @default(20) @db.Decimal(4, 2)
+  forfaitId      String?
+  forfait        Forfait?       @relation(fields: [forfaitId], references: [id])
+  pieceId        String?
+  piece          Piece?         @relation(fields: [pieceId], references: [id])
+}
+
+enum SegmentVehiculeForfait {
+  JEUNE
+  AGE_MOYEN
+  ANCIEN
+}
+
+enum CategorieForfait {
+  ENTRETIEN
+  CARROSSERIE
+}
+
+model Forfait {
+  id               String                  @id @default(cuid())
+  nom              String
+  description      String?
+  prixFixeHT       Decimal                 @db.Decimal(10, 2)
+  segmentVehicule  SegmentVehiculeForfait?
+  categorie        CategorieForfait
+  serviceTypeId    String?
+  serviceType      ServiceType?            @relation(fields: [serviceTypeId], references: [id])
+  actif            Boolean                 @default(true)
+
+  lignesDevis DevisLigne[]
+}
+
+// ---------------------------------------------------------------------------
+// Pièces détachées & stock (§4.4)
+// ---------------------------------------------------------------------------
+
+model Piece {
+  id          String  @id @default(cuid())
+  reference   String  @unique
+  designation String
+  categorie   String?
+  prixHT      Decimal @db.Decimal(10, 2)
+
+  stocks       StockPiece[]
+  reservations ReservationPiece[]
+  lignesDevis  DevisLigne[]
+}
+
+model StockPiece {
+  id                 String @id @default(cuid())
+  pieceId            String
+  piece              Piece  @relation(fields: [pieceId], references: [id], onDelete: Cascade)
+  siteId             String
+  site               Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  quantiteDisponible Int    @default(0)
+  seuilAlerte        Int    @default(2)
+
+  @@unique([pieceId, siteId])
+}
+
+enum StatutReservationPiece {
+  RESERVEE
+  UTILISEE
+  ANNULEE
+}
+
+model ReservationPiece {
+  id                String                  @id @default(cuid())
+  ordreReparationId String
+  ordreReparation   OrdreReparation         @relation(fields: [ordreReparationId], references: [id], onDelete: Cascade)
+  pieceId           String
+  piece             Piece                   @relation(fields: [pieceId], references: [id])
+  quantite          Int                     @default(1)
+  statut            StatutReservationPiece  @default(RESERVEE)
+  createdAt         DateTime                @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Facturation (§4.5)
+// ---------------------------------------------------------------------------
+
+enum StatutPaiement {
+  EN_ATTENTE
+  PAYEE
+  PARTIELLEMENT_PAYEE
+}
+
+enum ModePaiement {
+  CARTE
+  MOBILE
+  ESPECES
+  VIREMENT
+  ASSURANCE
+}
+
+model Facture {
+  id                      String         @id @default(cuid())
+  numero                  String         @unique
+  ordreReparationId       String         @unique
+  ordreReparation         OrdreReparation @relation(fields: [ordreReparationId], references: [id], onDelete: Cascade)
+  clientId                String
+  client                  ClientProfile  @relation(fields: [clientId], references: [id])
+  montantHT               Decimal        @db.Decimal(10, 2)
+  montantTTC              Decimal        @db.Decimal(10, 2)
+  statutPaiement          StatutPaiement @default(EN_ATTENTE)
+  modePaiement            ModePaiement?
+  datePaiement            DateTime?
+  createdAt               DateTime       @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Réclamations (§4.9)
+// ---------------------------------------------------------------------------
+
+enum StatutReclamation {
+  OUVERT
+  EN_COURS
+  RESOLU
+  FERME
+}
+
+model Reclamation {
+  id                  String            @id @default(cuid())
+  clientId            String
+  client              ClientProfile     @relation(fields: [clientId], references: [id])
+  ordreReparationId   String?
+  ordreReparation     OrdreReparation?  @relation(fields: [ordreReparationId], references: [id])
+  siteId              String?
+  motif               String
+  description         String?
+  canal               CanalRdv          @default(WEB)
+  statut              StatutReclamation @default(OUVERT)
+  slaEcheance         DateTime?
+  assigneAId          String?
+  assigneA            User?             @relation(fields: [assigneAId], references: [id])
+  createdAt           DateTime          @default(now())
+  resoluAt            DateTime?
+}
+
+// ---------------------------------------------------------------------------
+// Satisfaction & fidélisation (§4.7)
+// ---------------------------------------------------------------------------
+
+model EnqueteSatisfaction {
+  id                String          @id @default(cuid())
+  ordreReparationId String          @unique
+  ordreReparation   OrdreReparation @relation(fields: [ordreReparationId], references: [id], onDelete: Cascade)
+  clientId          String
+  client            ClientProfile   @relation(fields: [clientId], references: [id])
+  npsScore          Int?
+  csatScore         Int?
+  commentaire       String?
+  envoyeeAt         DateTime        @default(now())
+  reponduAt         DateTime?
+}
+
+model AvisClient {
+  id          String   @id @default(cuid())
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      ClientProfile @relation(fields: [clientId], references: [id])
+  note        Int
+  commentaire String?
+  verifie     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Garanties & rappels constructeur (§4.6) — modèle présent, UI simplifiée (liste + notification manuelle)
+// ---------------------------------------------------------------------------
+
+model RappelConstructeur {
+  id          String   @id @default(cuid())
+  marqueId    String
+  marque      Marque   @relation(fields: [marqueId], references: [id])
+  titre       String
+  description String?
+  criteres    Json? // ex: { modeles: ["..."], vinDebut: "...", vinFin: "..." }
+  dateDebut   DateTime @default(now())
+
+  vehiculesConcernes VehiculeRappelConcerne[]
+}
+
+model VehiculeRappelConcerne {
+  id         String              @id @default(cuid())
+  rappelId   String
+  rappel     RappelConstructeur  @relation(fields: [rappelId], references: [id], onDelete: Cascade)
+  vehiculeId String
+  vehicule   Vehicule            @relation(fields: [vehiculeId], references: [id], onDelete: Cascade)
+  notifieAt  DateTime?
+  traiteAt   DateTime?
+
+  @@unique([rappelId, vehiculeId])
+}
