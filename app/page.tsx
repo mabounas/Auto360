@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   Wrench,
   PaintBucket,
@@ -14,7 +15,6 @@ import type { ComponentType } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { MarketingNav } from "@/components/marketing/marketing-nav";
-import { GarageIllustration } from "@/components/marketing/garage-illustration";
 import { SERVICE_TYPES, VILLES_COUVERTES } from "@/lib/constants";
 
 const SERVICE_ICONS: Record<string, ComponentType<{ size?: number; className?: string }>> = {
@@ -48,6 +48,30 @@ const STEPS = [
     n: "04",
     title: "Suivez votre dossier en temps réel",
     body: "Devis en ligne, validation à distance, avancement de l'intervention et facture, depuis votre espace client.",
+  },
+];
+
+// Photos du réseau après-vente Auto Hall (source : autohall.ma, rubrique Service Après-Vente)
+const METIERS = [
+  {
+    src: "/images/entretien.jpg",
+    titre: "Entretien",
+    texte: "Révisions périodiques, vidange et filtration par des techniciens certifiés.",
+  },
+  {
+    src: "/images/mecanique.jpg",
+    titre: "Mécanique & électricité",
+    texte: "Diagnostic électronique et réparation mécanique sur outillage constructeur.",
+  },
+  {
+    src: "/images/carrosserie.jpg",
+    titre: "Carrosserie",
+    texte: "Tôlerie, peinture et lustrage, avec prise en charge des dossiers assurance.",
+  },
+  {
+    src: "/images/pieces-rechange.jpg",
+    titre: "Pièces de rechange",
+    texte: "Pièces d'origine disponibles au comptoir ou commandées sur référence.",
   },
 ];
 
@@ -136,7 +160,16 @@ export default function LandingPage() {
           </Card>
         </div>
 
-        <GarageIllustration className="w-full rounded-2xl shadow-lg" />
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl shadow-lg lg:aspect-[3/2]">
+          <Image
+            src="/images/sav-hero.jpg"
+            alt="Technicien réalisant un diagnostic électronique à bord d'un véhicule"
+            fill
+            priority
+            sizes="(max-width: 1024px) 100vw, 45vw"
+            className="object-cover"
+          />
+        </div>
       </section>
 
       {/* Stats */}
@@ -199,6 +232,35 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Métiers en photos */}
+      <section className="mx-auto max-w-6xl px-5 py-16 sm:px-8">
+        <span className="mb-2 block text-xs font-semibold tracking-wide text-accent-600 uppercase">
+          Nos métiers
+        </span>
+        <h2 className="mb-8 text-2xl font-extrabold text-primary-900 sm:text-3xl">
+          Des ateliers équipés, des techniciens certifiés
+        </h2>
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {METIERS.map((m) => (
+            <figure key={m.titre} className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
+              <div className="relative aspect-[4/3]">
+                <Image
+                  src={m.src}
+                  alt={m.titre}
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                  className="object-cover"
+                />
+              </div>
+              <figcaption className="p-4">
+                <p className="text-sm font-semibold text-foreground">{m.titre}</p>
+                <p className="mt-1 text-xs text-muted">{m.texte}</p>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </section>
+
       {/* Centres */}
       <section id="centres" className="bg-primary-50/60">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 sm:px-8 lg:grid-cols-[5fr_7fr]">
@@ -227,9 +289,15 @@ export default function LandingPage() {
               </span>
             </div>
           </div>
-          <Card className="flex aspect-video items-center justify-center bg-primary-700 p-0 overflow-hidden">
-            <GarageIllustration className="h-full w-full" />
-          </Card>
+          <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-border shadow-sm">
+            <Image
+              src="/images/atelier-tanger.jpg"
+              alt="Centre de service après-vente du réseau, façade et parvis"
+              fill
+              sizes="(max-width: 1024px) 100vw, 58vw"
+              className="object-cover"
+            />
+          </div>
         </div>
       </section>
 
