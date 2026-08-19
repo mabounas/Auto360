@@ -47,3 +47,6 @@ next-env.d.ts
 
 # maquette HTML d'origine décompressée (le zip source reste versionné)
 /HTML/extracted/
+
+.vercel
+.env*
