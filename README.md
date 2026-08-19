@@ -8,6 +8,8 @@ Le produit couvre le parcours SAV complet : prise de rendez-vous → réception 
 diagnostic → chiffrage → devis validé par le client → réparation → contrôle qualité →
 restitution → facturation → enquête de satisfaction.
 
+**Démonstration en ligne : https://auto360-kohl.vercel.app**
+
 ## Stack
 
 - **Next.js 16** (App Router, Server Components, Server Actions) + **React 19** + **TypeScript**
