@@ -10,6 +10,7 @@ import { DevisEditor } from "./devis-editor";
 import { ValidationDevisClient } from "./validation-devis-client";
 import { InterventionForm } from "./intervention-form";
 import { WorkflowActions } from "./workflow-actions";
+import { PhotosEtatDesLieux } from "./photos-etat-des-lieux";
 
 const ETAPES: { statut: StatutOR; label: string }[] = [
   { statut: StatutOR.ACCUEIL, label: "Accueil" },
@@ -206,6 +207,29 @@ export default async function OrDetailPage({ params }: { params: Promise<{ id: s
               {session.role === Role.CLIENT && or.devis?.statut === StatutDevis.PUBLIE && (
                 <ValidationDevisClient ordreReparationId={or.id} montantTTC={Number(or.devis.montantTTC)} />
               )}
+            </CardContent>
+          </Card>
+
+          {/* État des lieux photo (§4.3) */}
+          <Card>
+            <CardHeader>
+              <CardTitle>État des lieux à la réception</CardTitle>
+              <p className="text-xs text-muted">
+                Rayures, chocs et anomalies constatés à l&apos;arrivée du véhicule.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <PhotosEtatDesLieux
+                ordreReparationId={or.id}
+                photos={or.etatDesLieuxPhotos}
+                peutModifier={oneOf(
+                  session.role,
+                  Role.RECEPTIONNAIRE,
+                  Role.CHEF_ATELIER,
+                  Role.RESPONSABLE_SAV,
+                  Role.ADMIN
+                )}
+              />
             </CardContent>
           </Card>
 

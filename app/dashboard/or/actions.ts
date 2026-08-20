@@ -69,6 +69,64 @@ export async function creerOrdreReparation(formData: FormData) {
   return or.id;
 }
 
+// §4.3 — État des lieux photo/vidéo à la réception du véhicule. Les rayures et chocs
+// constatés à l'arrivée sont la seule preuve opposable en cas de litige à la restitution.
+export async function ajouterPhotosEtatDesLieux(formData: FormData) {
+  const session = await requireRole([
+    Role.RECEPTIONNAIRE,
+    Role.CHEF_ATELIER,
+    Role.RESPONSABLE_SAV,
+    Role.ADMIN,
+  ]);
+
+  const ordreReparationId = String(formData.get("ordreReparationId"));
+  const urls = formData.getAll("urls").map(String).filter(Boolean);
+  if (urls.length === 0) return;
+
+  const or = await prisma.ordreReparation.findUnique({
+    where: { id: ordreReparationId },
+    include: { site: true },
+  });
+  if (!or) throw new Error("Dossier introuvable");
+  if (session.siteId && or.siteId !== session.siteId) throw new Error("Non autorisé sur ce site");
+  if (session.compagnieId && or.site.compagnieId !== session.compagnieId) {
+    throw new Error("Non autorisé sur ce site");
+  }
+
+  await prisma.ordreReparation.update({
+    where: { id: ordreReparationId },
+    data: { etatDesLieuxPhotos: { push: urls } },
+  });
+
+  revalidatePath(`/dashboard/or/${ordreReparationId}`);
+}
+
+export async function retirerPhotoEtatDesLieux(formData: FormData) {
+  const session = await requireRole([
+    Role.RECEPTIONNAIRE,
+    Role.CHEF_ATELIER,
+    Role.RESPONSABLE_SAV,
+    Role.ADMIN,
+  ]);
+
+  const ordreReparationId = String(formData.get("ordreReparationId"));
+  const url = String(formData.get("url"));
+
+  const or = await prisma.ordreReparation.findUnique({
+    where: { id: ordreReparationId },
+    include: { site: true },
+  });
+  if (!or) throw new Error("Dossier introuvable");
+  if (session.siteId && or.siteId !== session.siteId) throw new Error("Non autorisé sur ce site");
+
+  await prisma.ordreReparation.update({
+    where: { id: ordreReparationId },
+    data: { etatDesLieuxPhotos: or.etatDesLieuxPhotos.filter((p) => p !== url) },
+  });
+
+  revalidatePath(`/dashboard/or/${ordreReparationId}`);
+}
+
 // §4.2bis — Le technicien saisit son rapport de diagnostic et le transmet au pricing
 export async function enregistrerDiagnostic(formData: FormData) {
   const session = await requireRole([Role.TECHNICIEN, Role.CHEF_ATELIER, Role.ADMIN]);
