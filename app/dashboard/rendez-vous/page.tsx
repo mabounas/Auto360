@@ -6,7 +6,8 @@ import { porteeParSiteId } from "@/lib/portee";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, oneOf } from "@/lib/utils";
+import { ReceptionActions } from "./reception-actions";
 
 const STATUT_VARIANT: Record<string, "default" | "success" | "warning" | "danger" | "neutral"> = {
   CONFIRME: "success",
@@ -94,9 +95,25 @@ export default async function RendezVousPage({
 
   const rdvs = await prisma.rendezVous.findMany({
     where: { ...siteFilter, dateHeure: { gte: debut, lte: fin } },
-    include: { site: true, serviceType: true, vehicule: { include: { marque: true } }, client: { include: { user: true } } },
+    include: {
+      site: true,
+      serviceType: true,
+      vehicule: { include: { marque: true } },
+      client: { include: { user: true } },
+      ordreReparation: { select: { id: true, numero: true } },
+    },
     orderBy: { dateHeure: "asc" },
   });
+
+  // Seul l'accueil réceptionne le véhicule et ouvre le dossier atelier ; le
+  // technicien consulte le planning et reprend le dossier une fois ouvert.
+  const peutReceptionner = oneOf(
+    session.role,
+    Role.RECEPTIONNAIRE,
+    Role.CHEF_ATELIER,
+    Role.RESPONSABLE_SAV,
+    Role.ADMIN
+  );
 
   const parService = new Map<string, typeof rdvs>();
   for (const r of rdvs) {
@@ -174,8 +191,8 @@ export default async function RendezVousPage({
           </CardHeader>
           <CardContent className="space-y-2">
             {list.map((r) => (
-              <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3 text-sm">
-                <div>
+              <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm">
+                <div className="min-w-[240px]">
                   <p className="font-medium">
                     {/* Sur une plage de plusieurs jours, l'heure seule ne suffit pas
                         à situer le rendez-vous : la date est alors reprise. */}
@@ -187,8 +204,18 @@ export default async function RendezVousPage({
                   <p className="text-xs text-muted">
                     {r.vehicule.marque.nom} {r.vehicule.modele} — {r.vehicule.immatriculation} — {r.site.nom}
                   </p>
+                  {r.motif && <p className="mt-1 text-xs text-muted italic">« {r.motif} »</p>}
                 </div>
-                <Badge variant={STATUT_VARIANT[r.statut] ?? "default"}>{r.statut.replaceAll("_", " ")}</Badge>
+                <div className="flex flex-wrap items-center gap-3">
+                  <ReceptionActions
+                    rendezVousId={r.id}
+                    ordreReparationId={r.ordreReparation?.id ?? null}
+                    ordreReparationNumero={r.ordreReparation?.numero ?? null}
+                    peutReceptionner={peutReceptionner}
+                    statut={r.statut}
+                  />
+                  <Badge variant={STATUT_VARIANT[r.statut] ?? "default"}>{r.statut.replaceAll("_", " ")}</Badge>
+                </div>
               </div>
             ))}
           </CardContent>
