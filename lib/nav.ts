@@ -36,7 +36,13 @@ export function navForRole(role: Role): NavItem[] {
         { href: "/dashboard/reclamations", label: "Réclamations" },
       ];
     case Role.TECHNICIEN:
-      return [...common, { href: "/dashboard/or", label: "Mes interventions" }];
+      return [
+        ...common,
+        // Le technicien doit voir les prestations attendues sur son atelier (§4.2 :
+        // vue quotidienne consolidée par service), pas seulement les dossiers ouverts.
+        { href: "/dashboard/rendez-vous", label: "Planning atelier" },
+        { href: "/dashboard/or", label: "Mes interventions" },
+      ];
     case Role.CHEF_ATELIER:
       return [
         ...common,
@@ -45,7 +51,13 @@ export function navForRole(role: Role): NavItem[] {
         { href: "/dashboard/capacites", label: "Positions par service" },
       ];
     case Role.GESTIONNAIRE_PIECES:
-      return [...common, { href: "/dashboard/stock", label: "Stock pièces" }, { href: "/dashboard/or", label: "Ordres de réparation" }];
+      return [
+        ...common,
+        { href: "/dashboard/stock", label: "Stock pièces" },
+        // Anticiper les pièces à sortir suppose de voir les prestations à venir.
+        { href: "/dashboard/rendez-vous", label: "Planning atelier" },
+        { href: "/dashboard/or", label: "Ordres de réparation" },
+      ];
     case Role.PRICING:
       return [...common, { href: "/dashboard/or", label: "Devis à chiffrer" }];
     case Role.RESPONSABLE_SAV:
