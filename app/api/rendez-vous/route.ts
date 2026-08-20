@@ -11,9 +11,10 @@ const schema = z.object({
   serviceTypeId: z.string(),
   date: z.string(), // YYYY-MM-DD
   heure: z.string(), // HH:mm
-  motif: z.string().optional(),
+  motif: z.string().nullish(),
   // Renseigné quand un conseiller prend le rendez-vous au nom d'un client.
-  pourClientId: z.string().optional(),
+  // `nullish` et non `optional` : le client en libre-service envoie explicitement null.
+  pourClientId: z.string().nullish(),
 });
 
 // Rôles habilités à réserver pour un tiers, avec le canal enregistré sur le rendez-vous.
@@ -29,7 +30,15 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   const body = schema.safeParse(await req.json());
-  if (!body.success) return NextResponse.json({ error: "Formulaire invalide." }, { status: 400 });
+  if (!body.success) {
+    // Les champs fautifs sont nommés : un « Formulaire invalide » nu ne permettait pas
+    // de diagnostiquer la cause depuis l'écran.
+    const champs = body.error.issues.map((i) => i.path.join(".")).join(", ");
+    return NextResponse.json(
+      { error: `Demande invalide (${champs || "format inattendu"}).` },
+      { status: 400 }
+    );
+  }
   const data = body.data;
 
   const canalStaff = CANAL_PAR_ROLE[session.role];

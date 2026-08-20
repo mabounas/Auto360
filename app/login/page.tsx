@@ -6,6 +6,8 @@ import Link from "next/link";
 import { AuthShell } from "@/components/marketing/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { DEMO_LOGIN_ACTIF } from "@/lib/demo-accounts";
+import { DemoAccountsPanel } from "./demo-accounts-panel";
 
 function LoginForm() {
   const router = useRouter();
@@ -15,14 +17,13 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function connecter(identifiant: string, motDePasse: string) {
     setError(null);
     setLoading(true);
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email: identifiant, password: motDePasse }),
     });
     setLoading(false);
     if (!res.ok) {
@@ -32,6 +33,11 @@ function LoginForm() {
     }
     router.push(params.get("next") ?? "/dashboard");
     router.refresh();
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await connecter(email, password);
   }
 
   return (
@@ -62,6 +68,8 @@ function LoginForm() {
           Créer mon espace client
         </Link>
       </p>
+
+      {DEMO_LOGIN_ACTIF && <DemoAccountsPanel onChoisir={connecter} />}
     </AuthShell>
   );
 }
