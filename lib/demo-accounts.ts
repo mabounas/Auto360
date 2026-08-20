@@ -69,6 +69,12 @@ export const COMPTES_DEMO: { groupe: string; comptes: CompteDemo[] }[] = [
         role: "Gestionnaire pièces",
         perimetre: "Stock et réservations",
       },
+      {
+        email: "centreappel@auto360.ma",
+        libelle: "Salma Idrissi",
+        role: "Centre d'appel",
+        perimetre: "RDV téléphoniques de cette agence",
+      },
     ],
   },
   {
@@ -119,12 +125,6 @@ export const COMPTES_DEMO: { groupe: string; comptes: CompteDemo[] }[] = [
         libelle: "Mehdi Berrada",
         role: "Direction Renault",
         perimetre: "Les 14 sites Renault uniquement",
-      },
-      {
-        email: "centreappel@auto360.ma",
-        libelle: "Salma Idrissi",
-        role: "Centre d'appel Auto Hall",
-        perimetre: "RDV téléphoniques sur le réseau Auto Hall",
       },
     ],
   },

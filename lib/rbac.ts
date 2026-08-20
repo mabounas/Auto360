@@ -35,3 +35,12 @@ export function isStaff(role: Role) {
 export function hasAnyRole(role: Role, allowed: Role[]) {
   return allowed.includes(role);
 }
+
+// Seuls ces profils pilotent un réseau entier et peuvent donc exister sans être
+// rattachés à un centre de service. Tout le personnel opérationnel appartient à
+// un centre précis : c'est lui qui détermine les dossiers qu'il peut traiter.
+export const ROLES_SANS_CENTRE: Role[] = [Role.DIRECTION_GROUPE, Role.ADMIN];
+
+export function exigeUnCentre(role: Role) {
+  return !ROLES_SANS_CENTRE.includes(role);
+}

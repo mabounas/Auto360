@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { creerUtilisateur } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
-import { ROLE_LABELS, STAFF_ROLES } from "@/lib/rbac";
+import { ROLE_LABELS, STAFF_ROLES, exigeUnCentre } from "@/lib/rbac";
 import { Role } from "@/lib/enums";
 
 export function CreerUtilisateurForm({ sites }: { sites: { id: string; label: string }[] }) {
   const [pending, startTransition] = useTransition();
   const [role, setRole] = useState<Role>(Role.RECEPTIONNAIRE);
+  const centreObligatoire = exigeUnCentre(role);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -57,18 +58,21 @@ export function CreerUtilisateurForm({ sites }: { sites: { id: string; label: st
         </Select>
       </div>
       <div className="sm:col-span-2">
-        <Label htmlFor="siteId">Périmètre de visibilité</Label>
-        <Select id="siteId" name="siteId" defaultValue={sites[0]?.id ?? ""}>
+        <Label htmlFor="siteId">Centre de service</Label>
+        <Select id="siteId" name="siteId" defaultValue={sites[0]?.id ?? ""} required={centreObligatoire}>
           {sites.map((s) => (
             <option key={s.id} value={s.id}>
               {s.label}
             </option>
           ))}
-          <option value="">Toute l&apos;enseigne (tous les sites)</option>
+          {!centreObligatoire && (
+            <option value="">Aucun — toute l&apos;enseigne</option>
+          )}
         </Select>
         <p className="mt-1 text-xs text-muted">
-          Rattaché à un site, le collaborateur ne verra que les dossiers de ce point de service.
-          Sans site, il accède à l&apos;ensemble des sites de son enseigne.
+          {centreObligatoire
+            ? `Un profil « ${ROLE_LABELS[role]} » appartient à un centre de service et ne traite que les dossiers de ce centre.`
+            : `Un profil « ${ROLE_LABELS[role]} » pilote un réseau : sans centre, il voit tous les sites de son enseigne.`}
         </p>
       </div>
       <div>

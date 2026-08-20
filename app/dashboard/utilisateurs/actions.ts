@@ -6,6 +6,7 @@ import { getSession } from "@/lib/session";
 import { hashPassword } from "@/lib/auth";
 import { Role } from "@/app/generated/prisma/client";
 import { porteeSites } from "@/lib/portee";
+import { exigeUnCentre, ROLE_LABELS } from "@/lib/rbac";
 
 export async function creerUtilisateur(formData: FormData) {
   const session = await getSession();
@@ -18,9 +19,17 @@ export async function creerUtilisateur(formData: FormData) {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw new Error("Un compte existe déjà avec cet email");
 
-  // Périmètre demandé : un site précis, ou l'enseigne entière.
+  // Périmètre demandé : un centre de service précis, ou l'enseigne entière.
   const siteIdRaw = String(formData.get("siteId") ?? "");
   const siteId = siteIdRaw || null;
+
+  // Le personnel opérationnel doit appartenir à un centre : sans rattachement, il
+  // accéderait aux dossiers de tout le réseau.
+  if (!siteId && exigeUnCentre(role)) {
+    throw new Error(
+      `Un profil « ${ROLE_LABELS[role]} » doit être rattaché à un centre de service.`
+    );
+  }
 
   let compagnieId: string | null = null;
   if (siteId) {

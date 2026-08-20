@@ -10,6 +10,7 @@ import {
   SegmentVehiculeForfait,
 } from "../app/generated/prisma/client";
 import bcrypt from "bcryptjs";
+import { exigeUnCentre } from "../lib/rbac";
 import { COMPAGNIES, TOUTES_LES_MARQUES } from "./data/compagnies";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
@@ -65,15 +66,25 @@ async function main() {
       });
       sites.push(site);
 
-      for (const nomMarque of s.marques) {
-        const marque = marqueParNom.get(nomMarque);
-        if (!marque) continue;
+      const marquesAttendues = s.marques
+        .map((nom) => marqueParNom.get(nom)?.id)
+        .filter((id): id is string => Boolean(id));
+
+      for (const marqueId of marquesAttendues) {
         await prisma.siteMarque.upsert({
-          where: { siteId_marqueId: { siteId: site.id, marqueId: marque.id } },
-          create: { siteId: site.id, marqueId: marque.id },
+          where: { siteId_marqueId: { siteId: site.id, marqueId } },
+          create: { siteId: site.id, marqueId },
           update: {},
         });
       }
+
+      // Réconciliation : sans cette suppression, les marques d'un jeu de données
+      // antérieur restaient rattachées au site. Un site Auto Hall se retrouvait
+      // à « distribuer » Renault ou Peugeot, et se voyait donc proposé au
+      // propriétaire d'un véhicule d'une marque concurrente.
+      await prisma.siteMarque.deleteMany({
+        where: { siteId: site.id, marqueId: { notIn: marquesAttendues } },
+      });
     }
     console.log(`  ${c.nom} : ${c.sites.length} points de service`);
   }
@@ -252,10 +263,10 @@ async function main() {
     { email: "direction@auto360.ma", role: Role.DIRECTION_GROUPE, nom: "Bennani", prenom: "Yassine", compagnieId: autoHall.id },
     { email: "admin.autohall@auto360.ma", role: Role.ADMIN, nom: "Sekkat", prenom: "Leila", compagnieId: autoHall.id },
     { email: "direction.renault@auto360.ma", role: Role.DIRECTION_GROUPE, nom: "Berrada", prenom: "Mehdi", compagnieId: renault.id },
-    { email: "centreappel@auto360.ma", role: Role.CENTRE_APPEL, nom: "Idrissi", prenom: "Salma", compagnieId: autoHall.id },
 
     // Agence Auto Hall n°1 (Lalla Yacout) — ne voit que ce site
     { email: "sav.casa@auto360.ma", role: Role.RESPONSABLE_SAV, nom: "Amrani", prenom: "Karim", siteId: casa1.id, compagnieId: autoHall.id },
+    { email: "centreappel@auto360.ma", role: Role.CENTRE_APPEL, nom: "Idrissi", prenom: "Salma", siteId: casa1.id, compagnieId: autoHall.id },
     { email: "accueil.casa@auto360.ma", role: Role.RECEPTIONNAIRE, nom: "El Fassi", prenom: "Nadia", siteId: casa1.id, compagnieId: autoHall.id },
     { email: "chefatelier.casa@auto360.ma", role: Role.CHEF_ATELIER, nom: "Tazi", prenom: "Hicham", siteId: casa1.id, compagnieId: autoHall.id },
     { email: "technicien.casa@auto360.ma", role: Role.TECHNICIEN, nom: "Benjelloun", prenom: "Omar", siteId: casa1.id, compagnieId: autoHall.id },
@@ -271,6 +282,11 @@ async function main() {
   ];
 
   for (const u of staffUsers) {
+    // Garde-fou : hors direction et administration, un compte sans centre de service
+    // verrait les dossiers de tout le réseau.
+    if (!u.siteId && exigeUnCentre(u.role)) {
+      throw new Error(`${u.email} (${u.role}) doit être rattaché à un centre de service`);
+    }
     await prisma.user.upsert({
       where: { email: u.email },
       create: { ...u, passwordHash: staffPw, telephone: "+212 6 00 00 00 00" },
@@ -332,9 +348,9 @@ async function main() {
   console.log("    admin.autohall@auto360.ma     — Admin Auto Hall (tous ses sites)");
   console.log("    direction@auto360.ma          — Direction Auto Hall");
   console.log("    direction.renault@auto360.ma  — Direction Renault Maroc");
-  console.log("    centreappel@auto360.ma        — Centre d'appel Auto Hall");
   console.log("\n  Périmètre site — Auto Hall Lalla Yacout (agence 1)");
   console.log("    sav.casa@auto360.ma           — Responsable SAV");
+  console.log("    centreappel@auto360.ma        — Centre d'appel");
   console.log("    accueil.casa@auto360.ma       — Réceptionnaire");
   console.log("    chefatelier.casa@auto360.ma   — Chef d'atelier");
   console.log("    technicien.casa@auto360.ma    — Technicien");
