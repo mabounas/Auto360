@@ -9,13 +9,14 @@ import { formatDate } from "@/lib/utils";
 import { trierParDistance, formatDistance } from "@/lib/geo";
 import { Navigation } from "lucide-react";
 
-type Vehicule = { id: string; label: string };
+type Vehicule = { id: string; label: string; marqueId: string; marqueNom: string };
 type Site = {
   id: string;
   nom: string;
   ville: string;
   compagnieCode: string;
   compagnieNom: string;
+  marqueIds: string[];
   latitude: number | null;
   longitude: number | null;
 };
@@ -52,15 +53,22 @@ export function BookingWizard({
   const [geoRefusee, setGeoRefusee] = useState(false);
   const [compagnieFiltre, setCompagnieFiltre] = useState("");
 
-  // Enseignes réellement représentées parmi les centres proposés au client.
-  const compagnies = [...new Map(sites.map((s) => [s.compagnieCode, s.compagnieNom])).entries()].sort(
-    (a, b) => a[1].localeCompare(b[1], "fr")
-  );
+  // Seuls les centres agréés pour la marque du véhicule sélectionné sont éligibles :
+  // on se fie au véhicule choisi, pas à l'ensemble du parc du client.
+  const vehiculeChoisi = vehicules.find((v) => v.id === vehiculeId);
+  const sitesEligibles = vehiculeChoisi
+    ? sites.filter((s) => s.marqueIds.includes(vehiculeChoisi.marqueId))
+    : sites;
+
+  // Enseignes représentées parmi ces centres éligibles.
+  const compagnies = [
+    ...new Map(sitesEligibles.map((s) => [s.compagnieCode, s.compagnieNom])).entries(),
+  ].sort((a, b) => a[1].localeCompare(b[1], "fr"));
 
   // Filtre par enseigne, puis reclassement par éloignement dès que la position est connue.
   const sitesFiltres = compagnieFiltre
-    ? sites.filter((s) => s.compagnieCode === compagnieFiltre)
-    : sites;
+    ? sitesEligibles.filter((s) => s.compagnieCode === compagnieFiltre)
+    : sitesEligibles;
   const sitesAffiches = maPosition
     ? trierParDistance(sitesFiltres, maPosition.lat, maPosition.lng)
     : sitesFiltres.map((s) => ({ ...s, distanceKm: null as number | null }));
@@ -210,28 +218,37 @@ export function BookingWizard({
 
         {step === 2 && (
           <div className="space-y-4">
-            {compagnies.length > 1 && (
-              <div>
-                <Label htmlFor="compagnieFiltre">Enseigne</Label>
-                <Select
-                  id="compagnieFiltre"
-                  value={compagnieFiltre}
-                  onChange={(e) => {
-                    setCompagnieFiltre(e.target.value);
-                    setSiteId("");
-                  }}
-                >
-                  <option value="">
-                    Toutes les enseignes ({sites.length} centres)
+            {/* Le sélecteur reste affiché même avec une seule enseigne éligible :
+                c'est ce qui explique au client pourquoi sa liste se limite à un
+                réseau — les centres doivent être agréés pour la marque du véhicule. */}
+            <div>
+              <Label htmlFor="compagnieFiltre">Enseigne</Label>
+              <Select
+                id="compagnieFiltre"
+                value={compagnieFiltre}
+                onChange={(e) => {
+                  setCompagnieFiltre(e.target.value);
+                  setSiteId("");
+                }}
+                disabled={compagnies.length <= 1}
+              >
+                {compagnies.length > 1 && (
+                  <option value="">Toutes les enseignes ({sitesEligibles.length} centres)</option>
+                )}
+                {compagnies.map(([code, nom]) => (
+                  <option key={code} value={code}>
+                    {nom} ({sitesEligibles.filter((s) => s.compagnieCode === code).length} centres)
                   </option>
-                  {compagnies.map(([code, nom]) => (
-                    <option key={code} value={code}>
-                      {nom} ({sites.filter((s) => s.compagnieCode === code).length} centres)
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            )}
+                ))}
+              </Select>
+              {vehiculeChoisi && (
+                <p className="mt-1 text-xs text-muted">
+                  {compagnies.length > 1
+                    ? `${compagnies.length} enseignes sont agréées pour votre ${vehiculeChoisi.marqueNom}.`
+                    : `Seule cette enseigne est agréée pour votre ${vehiculeChoisi.marqueNom} ; les autres réseaux ne prennent pas cette marque en charge.`}
+                </p>
+              )}
+            </div>
 
             <div className="flex flex-wrap items-center justify-between gap-2">
               <Label>Centre de service</Label>

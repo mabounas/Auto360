@@ -325,12 +325,12 @@ async function main() {
     });
   }
 
-  const ford = marqueParNom.get("Ford")!;
-  await prisma.vehicule.upsert({
-    where: { vin: "VF1RJA00012345678" },
-    create: {
-      clientId: clientProfile.id,
-      marqueId: ford.id,
+  // Deux véhicules de marques distribuées par des enseignes différentes : c'est ce
+  // qui permet de montrer que les centres proposés dépendent du véhicule choisi, et
+  // non du parc du client dans son ensemble.
+  const vehiculesDemo = [
+    {
+      marque: "Ford",
       modele: "Focus",
       vin: "VF1RJA00012345678",
       immatriculation: "12345-A-6",
@@ -338,8 +338,32 @@ async function main() {
       kilometrage: 34500,
       garantieFin: new Date("2027-03-15"),
     },
-    update: {},
-  });
+    {
+      marque: "Renault",
+      modele: "Clio V",
+      vin: "VF15RPNJ8N4567890",
+      immatriculation: "78901-B-1",
+      dateMiseCirculation: new Date("2023-09-02"),
+      kilometrage: 18200,
+      garantieFin: new Date("2028-09-02"),
+    },
+  ];
+
+  for (const { marque: nomMarque, ...donnees } of vehiculesDemo) {
+    const marque = marqueParNom.get(nomMarque);
+    if (!marque) continue;
+    await prisma.vehicule.upsert({
+      where: { vin: donnees.vin },
+      create: { clientId: clientProfile.id, marqueId: marque.id, ...donnees },
+      // Réaligné à chaque seed : un `update: {}` laissait le véhicule figé sur les
+      // valeurs d'un jeu de données antérieur (marque et modèle inclus).
+      update: {
+        marqueId: marque.id,
+        modele: donnees.modele,
+        immatriculation: donnees.immatriculation,
+      },
+    });
+  }
 
   console.log("\nSeed terminé. Comptes de démo (mot de passe: Passw0rd!) :");
   console.log("\n  Périmètre global (toutes enseignes)");

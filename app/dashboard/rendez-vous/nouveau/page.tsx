@@ -117,14 +117,16 @@ export default async function NouveauRendezVousPage({
     );
   }
 
-  // Seuls les centres dont l'enseigne distribue la marque du véhicule sont proposés :
-  // un propriétaire de Ford ne se voit pas orienter vers un atelier Peugeot.
+  // On charge les centres couvrant l'une des marques du client, puis le tunnel
+  // restreint la liste à la marque du véhicule effectivement sélectionné : un
+  // client possédant une Ford et une Renault ne doit pas se voir proposer un
+  // atelier Renault pour venir faire réviser sa Ford.
   const marquesClient = [...new Set(client.vehicules.map((v) => v.marqueId))];
 
   const [sites, services] = await Promise.all([
     prisma.site.findMany({
       where: { marques: { some: { marqueId: { in: marquesClient } } } },
-      include: { compagnie: true },
+      include: { compagnie: true, marques: { select: { marqueId: true } } },
       orderBy: [{ ville: "asc" }, { nom: "asc" }],
     }),
     prisma.serviceType.findMany({ orderBy: { nom: "asc" } }),
@@ -166,6 +168,8 @@ export default async function NouveauRendezVousPage({
         vehicules={client.vehicules.map((v) => ({
           id: v.id,
           label: `${v.marque.nom} ${v.modele} — ${v.immatriculation}`,
+          marqueId: v.marqueId,
+          marqueNom: v.marque.nom,
         }))}
         sites={sites.map((s) => ({
           id: s.id,
@@ -173,6 +177,7 @@ export default async function NouveauRendezVousPage({
           ville: s.ville,
           compagnieCode: s.compagnie.code,
           compagnieNom: s.compagnie.nom,
+          marqueIds: s.marques.map((m) => m.marqueId),
           latitude: s.latitude,
           longitude: s.longitude,
         }))}

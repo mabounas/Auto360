@@ -7,6 +7,14 @@ import { SITES_PEUGEOT } from "./sites-peugeot";
 // distribution ou réseau de marque) possède ses propres points de service, ses marques
 // distribuées et ses équipes. Un même déploiement peut donc servir plusieurs clients,
 // et une démonstration commerciale peut se faire directement sur le réseau du prospect.
+//
+// PASSAGE À UNE ENSEIGNE UNIQUE
+// Une fois la solution retenue par un client, il suffit de ne laisser que son enseigne
+// dans ce tableau puis de relancer `npm run db:seed` : les sites des enseignes retirées
+// sont supprimés par le nettoyage du seed (voir « référentiel réseau fait autorité »),
+// et la suppression en cascade emporte leurs rendez-vous, dossiers et stocks. Rien
+// d'autre ne change — le cloisonnement par site reste le même, il n'opère alors que
+// sur les agences de cette seule enseigne.
 export const COMPAGNIES: CompagnieReseau[] = [
   {
     code: "AUTOHALL",
