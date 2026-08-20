@@ -11,6 +11,7 @@ import { ValidationDevisClient } from "./validation-devis-client";
 import { InterventionForm } from "./intervention-form";
 import { WorkflowActions } from "./workflow-actions";
 import { PhotosEtatDesLieux } from "./photos-etat-des-lieux";
+import { VehiculeIdentite } from "@/components/dashboard/vehicule-identite";
 
 const ETAPES: { statut: StatutOR; label: string }[] = [
   { statut: StatutOR.ACCUEIL, label: "Accueil" },
@@ -64,9 +65,14 @@ export default async function OrDetailPage({ params }: { params: Promise<{ id: s
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground">{or.numero}</h1>
-          <p className="text-sm text-muted">
-            {or.vehicule.marque.nom} {or.vehicule.modele} — {or.vehicule.immatriculation} · {or.site.nom}
-          </p>
+          <VehiculeIdentite
+            marque={or.vehicule.marque.nom}
+            modele={or.vehicule.modele}
+            immatriculation={or.vehicule.immatriculation}
+            vin={or.vehicule.vin}
+            className="mt-1 text-sm"
+          />
+          <p className="mt-0.5 text-xs text-muted">{or.site.nom}</p>
         </div>
         <Badge variant="accent">{or.statut.replaceAll("_", " ")}</Badge>
       </div>

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDateTime, oneOf } from "@/lib/utils";
 import { ReceptionActions } from "./reception-actions";
+import { VehiculeIdentite } from "@/components/dashboard/vehicule-identite";
 
 const STATUT_VARIANT: Record<string, "default" | "success" | "warning" | "danger" | "neutral"> = {
   CONFIRME: "success",
@@ -201,9 +202,13 @@ export default async function RendezVousPage({
                       : formatDateTime(r.dateHeure).split(" ").slice(-1)}{" "}
                     — {r.client.user.prenom} {r.client.user.nom}
                   </p>
-                  <p className="text-xs text-muted">
-                    {r.vehicule.marque.nom} {r.vehicule.modele} — {r.vehicule.immatriculation} — {r.site.nom}
-                  </p>
+                  <VehiculeIdentite
+                    marque={r.vehicule.marque.nom}
+                    modele={r.vehicule.modele}
+                    immatriculation={r.vehicule.immatriculation}
+                    vin={r.vehicule.vin}
+                  />
+                  <p className="text-xs text-muted">{r.site.nom}</p>
                   {r.motif && <p className="mt-1 text-xs text-muted italic">« {r.motif} »</p>}
                 </div>
                 <div className="flex flex-wrap items-center gap-3">

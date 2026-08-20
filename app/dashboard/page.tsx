@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate, formatDateTime } from "@/lib/utils";
+import { VehiculeIdentite } from "@/components/dashboard/vehicule-identite";
 
 export default async function DashboardHome() {
   const session = await getSession();
@@ -192,8 +193,13 @@ export default async function DashboardHome() {
               >
                 <div>
                   <p className="text-sm font-medium">
-                    {or.numero} — {or.client.user.prenom} {or.client.user.nom} — {or.vehicule.modele}
+                    {or.numero} — {or.client.user.prenom} {or.client.user.nom}
                   </p>
+                  <VehiculeIdentite
+                    modele={or.vehicule.modele}
+                    immatriculation={or.vehicule.immatriculation}
+                    vin={or.vehicule.vin}
+                  />
                   <p className="text-xs text-muted">
                     {or.site.nom} — {formatDate(or.createdAt)}
                   </p>

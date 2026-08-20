@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, formatMAD } from "@/lib/utils";
 import { PaiementForm } from "./paiement-form";
+import { VehiculeIdentite } from "@/components/dashboard/vehicule-identite";
 
 export default async function FacturesPage() {
   const session = await getSession();
@@ -70,7 +71,12 @@ export default async function FacturesPage() {
                       {f.client.user.prenom} {f.client.user.nom}
                     </td>
                   )}
-                  <td className="px-4 py-3">{f.ordreReparation.vehicule.immatriculation}</td>
+                  <td className="px-4 py-3">
+                    <VehiculeIdentite
+                      immatriculation={f.ordreReparation.vehicule.immatriculation}
+                      vin={f.ordreReparation.vehicule.vin}
+                    />
+                  </td>
                   <td className="px-4 py-3">{formatDate(f.createdAt)}</td>
                   <td className="px-4 py-3 text-right font-medium">{formatMAD(Number(f.montantTTC))}</td>
                   <td className="px-4 py-3">

@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate, oneOf } from "@/lib/utils";
+import { VehiculeIdentite } from "@/components/dashboard/vehicule-identite";
 
 const STATUT_VARIANT: Record<string, "default" | "accent" | "success" | "warning" | "danger" | "neutral"> = {
   ACCUEIL: "neutral",
@@ -47,9 +48,13 @@ export default async function OrdresReparationPage() {
               <Card className="transition-colors hover:border-primary-300">
                 <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
                   <div>
-                    <p className="text-sm font-medium">
-                      {or.numero} — {or.vehicule.marque.nom} {or.vehicule.modele}
-                    </p>
+                    <p className="text-sm font-medium">{or.numero}</p>
+                    <VehiculeIdentite
+                      marque={or.vehicule.marque.nom}
+                      modele={or.vehicule.modele}
+                      immatriculation={or.vehicule.immatriculation}
+                      vin={or.vehicule.vin}
+                    />
                     <p className="text-xs text-muted">
                       {or.site.nom} — ouvert le {formatDate(or.createdAt)}
                     </p>
@@ -134,8 +139,12 @@ export default async function OrdresReparationPage() {
                     {or.client.user.prenom} {or.client.user.nom}
                   </td>
                   <td className="px-4 py-3">
-                    {or.vehicule.marque.nom} {or.vehicule.modele}
-                    <span className="block text-xs text-muted">{or.vehicule.immatriculation}</span>
+                    <VehiculeIdentite
+                      marque={or.vehicule.marque.nom}
+                      modele={or.vehicule.modele}
+                      immatriculation={or.vehicule.immatriculation}
+                      vin={or.vehicule.vin}
+                    />
                   </td>
                   <td className="px-4 py-3">{or.site.ville}</td>
                   <td className="px-4 py-3 text-xs">{or.motifVisite.replaceAll("_", " ")}</td>
