@@ -16,84 +16,126 @@ export type CompteDemo = {
   perimetre: string;
 };
 
+// Comptes groupés par périmètre : c'est ce qui rend le cloisonnement visible en
+// démonstration — deux agences d'une même enseigne ne voient pas les mêmes dossiers.
 export const COMPTES_DEMO: { groupe: string; comptes: CompteDemo[] }[] = [
   {
-    groupe: "Côté client",
+    groupe: "Client",
     comptes: [
       {
         email: "client@auto360.ma",
         libelle: "Youssef Mansouri",
         role: "Client",
-        perimetre: "Prise de RDV, devis, factures, avis",
+        perimetre: "Ses véhicules, RDV, devis et factures",
       },
     ],
   },
   {
-    groupe: "Accueil & relation client",
-    comptes: [
-      {
-        email: "centreappel@auto360.ma",
-        libelle: "Salma Idrissi",
-        role: "Centre d'appel",
-        perimetre: "RDV téléphoniques, tous sites",
-      },
-      {
-        email: "accueil.casa@auto360.ma",
-        libelle: "Nadia El Fassi",
-        role: "Réceptionnaire",
-        perimetre: "Accueil véhicule, ouverture des OR — Casablanca",
-      },
-    ],
-  },
-  {
-    groupe: "Atelier",
-    comptes: [
-      {
-        email: "technicien.casa@auto360.ma",
-        libelle: "Omar Benjelloun",
-        role: "Technicien",
-        perimetre: "Diagnostic, interventions — Casablanca",
-      },
-      {
-        email: "chefatelier.casa@auto360.ma",
-        libelle: "Hicham Tazi",
-        role: "Chef d'atelier",
-        perimetre: "Planning, contrôle qualité — Casablanca",
-      },
-      {
-        email: "pricing.casa@auto360.ma",
-        libelle: "Sara Ouazzani",
-        role: "Pricing / chiffrage",
-        perimetre: "Devis à établir — Casablanca",
-      },
-      {
-        email: "pieces.casa@auto360.ma",
-        libelle: "Rania Chraibi",
-        role: "Gestionnaire pièces",
-        perimetre: "Stock et réservations — Casablanca",
-      },
-    ],
-  },
-  {
-    groupe: "Pilotage",
+    groupe: "Agence Auto Hall Lalla Yacout",
     comptes: [
       {
         email: "sav.casa@auto360.ma",
         libelle: "Karim Amrani",
         role: "Responsable SAV",
-        perimetre: "KPIs et pilotage — Casablanca",
+        perimetre: "Pilotage de cette agence uniquement",
       },
+      {
+        email: "accueil.casa@auto360.ma",
+        libelle: "Nadia El Fassi",
+        role: "Réceptionnaire",
+        perimetre: "Accueil véhicule, ouverture des OR",
+      },
+      {
+        email: "chefatelier.casa@auto360.ma",
+        libelle: "Hicham Tazi",
+        role: "Chef d'atelier",
+        perimetre: "Planning, positions, contrôle qualité",
+      },
+      {
+        email: "technicien.casa@auto360.ma",
+        libelle: "Omar Benjelloun",
+        role: "Technicien",
+        perimetre: "Diagnostic et interventions",
+      },
+      {
+        email: "pricing.casa@auto360.ma",
+        libelle: "Sara Ouazzani",
+        role: "Pricing / chiffrage",
+        perimetre: "Devis à établir après diagnostic",
+      },
+      {
+        email: "pieces.casa@auto360.ma",
+        libelle: "Rania Chraibi",
+        role: "Gestionnaire pièces",
+        perimetre: "Stock et réservations",
+      },
+    ],
+  },
+  {
+    groupe: "Agence Auto Hall Siège",
+    comptes: [
+      {
+        email: "sav.siege@auto360.ma",
+        libelle: "Nabil Alaoui",
+        role: "Responsable SAV",
+        perimetre: "Ne voit pas les dossiers de Lalla Yacout",
+      },
+      {
+        email: "accueil.siege@auto360.ma",
+        libelle: "Imane Bouzidi",
+        role: "Réceptionnaire",
+        perimetre: "Accueil de cette agence uniquement",
+      },
+    ],
+  },
+  {
+    groupe: "Agence Renault Casablanca",
+    comptes: [
+      {
+        email: "sav.renault@auto360.ma",
+        libelle: "Anas Cherkaoui",
+        role: "Responsable SAV",
+        perimetre: "Enseigne concurrente, données séparées",
+      },
+    ],
+  },
+  {
+    groupe: "Direction d'enseigne",
+    comptes: [
       {
         email: "direction@auto360.ma",
         libelle: "Yassine Bennani",
-        role: "Direction groupe",
-        perimetre: "Vision consolidée multi-sites",
+        role: "Direction Auto Hall",
+        perimetre: "Les 41 sites Auto Hall, pas Renault ni Peugeot",
       },
+      {
+        email: "admin.autohall@auto360.ma",
+        libelle: "Leila Sekkat",
+        role: "Admin Auto Hall",
+        perimetre: "Paramétrage de toute l'enseigne Auto Hall",
+      },
+      {
+        email: "direction.renault@auto360.ma",
+        libelle: "Mehdi Berrada",
+        role: "Direction Renault",
+        perimetre: "Les 14 sites Renault uniquement",
+      },
+      {
+        email: "centreappel@auto360.ma",
+        libelle: "Salma Idrissi",
+        role: "Centre d'appel Auto Hall",
+        perimetre: "RDV téléphoniques sur le réseau Auto Hall",
+      },
+    ],
+  },
+  {
+    groupe: "Administration globale",
+    comptes: [
       {
         email: "admin@auto360.ma",
         libelle: "Administrateur",
-        role: "Administrateur",
-        perimetre: "Paramétrage complet",
+        role: "Admin global",
+        perimetre: "Toutes les enseignes et tous les sites",
       },
     ],
   },
