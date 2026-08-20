@@ -122,25 +122,26 @@ async function main() {
   }
 
   // --- Disponibilités (lun-sam, 08:00-18:00, capacité variable) ---------
-  for (const site of sites) {
-    for (const service of services) {
-      for (let jour = 1; jour <= 6; jour++) {
-        await prisma.disponibiliteConfig.upsert({
-          where: { siteId_serviceTypeId_jourSemaine: { siteId: site.id, serviceTypeId: service.id, jourSemaine: jour } },
-          create: {
-            siteId: site.id,
-            serviceTypeId: service.id,
-            jourSemaine: jour,
-            heureDebut: "08:00",
-            heureFin: jour === 6 ? "13:00" : "18:00",
-            dureeCreneauMin: service.dureeEstimeeMin,
-            capaciteParCreneau: service.code === CodeService.CARROSSERIE_ESTHETIQUE ? 1 : 2,
-          },
-          update: {},
-        });
-      }
-    }
-  }
+  // Un insert groupé plutôt que ~3000 upserts séquentiels : sur une base distante,
+  // la latence réseau dominait complètement le temps d'exécution du seed.
+  const disponibilites = sites.flatMap((site) =>
+    services.flatMap((service) =>
+      [1, 2, 3, 4, 5, 6].map((jour) => ({
+        siteId: site.id,
+        serviceTypeId: service.id,
+        jourSemaine: jour,
+        heureDebut: "08:00",
+        heureFin: jour === 6 ? "13:00" : "18:00",
+        dureeCreneauMin: service.dureeEstimeeMin,
+        capaciteParCreneau: service.code === CodeService.CARROSSERIE_ESTHETIQUE ? 1 : 2,
+      }))
+    )
+  );
+  const { count: nbDispos } = await prisma.disponibiliteConfig.createMany({
+    data: disponibilites,
+    skipDuplicates: true,
+  });
+  if (nbDispos > 0) console.log(`  ${nbDispos} créneaux de disponibilité configurés`);
 
   // --- Forfaits Best-Cost -------------------------------------------
   const forfaitsData = [
@@ -184,14 +185,20 @@ async function main() {
       update: {},
     });
     pieces.push(piece);
-    for (const site of sites) {
-      await prisma.stockPiece.upsert({
-        where: { pieceId_siteId: { pieceId: piece.id, siteId: site.id } },
-        create: { pieceId: piece.id, siteId: site.id, quantiteDisponible: 15, seuilAlerte: 3 },
-        update: {},
-      });
-    }
   }
+
+  // Stock initial identique sur tous les points de service (insert groupé, cf. ci-dessus)
+  await prisma.stockPiece.createMany({
+    data: pieces.flatMap((piece) =>
+      sites.map((site) => ({
+        pieceId: piece.id,
+        siteId: site.id,
+        quantiteDisponible: 15,
+        seuilAlerte: 3,
+      }))
+    ),
+    skipDuplicates: true,
+  });
 
   // --- Utilisateurs staff -----------------------------------------------
   const staffPw = await hash("Passw0rd!");

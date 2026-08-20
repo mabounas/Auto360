@@ -95,8 +95,13 @@ Référence entre parenthèses : section du cahier des charges.
   intervention.
 - **Reporting & pilotage** (§4.12, §7) — CA SAV, panier moyen, délai moyen d'intervention,
   taux de conversion devis, taux de rétention, NPS, comparatif inter-sites.
-- **Multi-site / multi-marque** (§4.13) — sites, marques distribuées par site, périmètre de
-  visibilité différencié.
+- **Multi-compagnies / multi-site / multi-marque** (§4.13) — la plateforme héberge
+  plusieurs enseignes, chacune avec son réseau, ses marques et ses équipes. Une
+  démonstration commerciale peut donc se faire sur le réseau réel du prospect.
+- **Localisateur d'ateliers** (§4.14) — page publique `/centres` : recherche par enseigne,
+  par ville ou par marque, et tri par **distance réelle** depuis la position du navigateur
+  (formule de haversine), avec lien d'itinéraire. Le tunnel de réservation ne propose que
+  les centres distribuant la marque du véhicule et sait les classer par proximité.
 - **Forfaits à prix fixe** (§4.15) — forfaits Best-Cost par segment d'âge du véhicule et
   forfaits carrosserie.
 - **RBAC** (§5.2) — 10 profils ; les rôles rattachés à un site ne voient que leur périmètre,
