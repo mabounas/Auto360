@@ -25,10 +25,13 @@ export function BookingWizard({
   vehicules,
   sites,
   services,
+  pourClientId,
 }: {
   vehicules: Vehicule[];
   sites: Site[];
   services: ServiceType[];
+  // Non nul quand un conseiller réserve pour un client (téléphone ou comptoir).
+  pourClientId?: string | null;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -111,7 +114,7 @@ export function BookingWizard({
     const res = await fetch("/api/rendez-vous", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ vehiculeId, siteId, serviceTypeId, date, heure, motif }),
+      body: JSON.stringify({ vehiculeId, siteId, serviceTypeId, date, heure, motif, pourClientId }),
     });
     setLoading(false);
     const data = await res.json();
@@ -127,16 +130,34 @@ export function BookingWizard({
       <Card className="max-w-lg">
         <CardContent className="p-6 text-center">
           <p className="text-lg font-bold text-foreground">
-            {result.statut === "CONFIRME" ? "Rendez-vous confirmé !" : "Vous êtes en liste d'attente"}
+            {result.statut === "CONFIRME"
+              ? "Rendez-vous confirmé !"
+              : pourClientId
+                ? "Client placé en liste d'attente"
+                : "Vous êtes en liste d'attente"}
           </p>
           <p className="mt-2 text-sm text-muted">
             {result.statut === "CONFIRME"
-              ? "Un rappel automatique vous sera envoyé avant votre rendez-vous."
-              : "Ce créneau vient d'être pris — nous vous contacterons dès qu'une place se libère."}
+              ? pourClientId
+                ? "Le client recevra la confirmation et un rappel automatique avant son rendez-vous."
+                : "Un rappel automatique vous sera envoyé avant votre rendez-vous."
+              : pourClientId
+                ? "La dernière position de ce créneau vient d'être prise. Le client sera recontacté dès qu'une place se libère."
+                : "Ce créneau vient d'être pris — nous vous contacterons dès qu'une place se libère."}
           </p>
-          <Button className="mt-5" onClick={() => router.push("/dashboard/rendez-vous")}>
-            Voir mes rendez-vous
-          </Button>
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            <Button onClick={() => router.push("/dashboard/rendez-vous")}>
+              {pourClientId ? "Voir le planning" : "Voir mes rendez-vous"}
+            </Button>
+            {pourClientId && (
+              <Button
+                variant="secondary"
+                onClick={() => router.push("/dashboard/rendez-vous/nouveau")}
+              >
+                Planifier pour un autre client
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
     );

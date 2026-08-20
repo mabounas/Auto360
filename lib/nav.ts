@@ -21,6 +21,7 @@ export function navForRole(role: Role): NavItem[] {
     case Role.CENTRE_APPEL:
       return [
         ...common,
+        { href: "/dashboard/rendez-vous/nouveau", label: "Planifier un rendez-vous" },
         { href: "/dashboard/rendez-vous", label: "Rendez-vous" },
         { href: "/dashboard/clients", label: "Clients" },
         { href: "/dashboard/reclamations", label: "Réclamations" },
@@ -28,6 +29,7 @@ export function navForRole(role: Role): NavItem[] {
     case Role.RECEPTIONNAIRE:
       return [
         ...common,
+        { href: "/dashboard/rendez-vous/nouveau", label: "Planifier un rendez-vous" },
         { href: "/dashboard/rendez-vous", label: "Rendez-vous" },
         { href: "/dashboard/or", label: "Ordres de réparation" },
         { href: "/dashboard/clients", label: "Clients" },
@@ -69,6 +71,7 @@ export function navForRole(role: Role): NavItem[] {
         ...common,
         { href: "/dashboard/kpis", label: "KPIs & pilotage" },
         { href: "/dashboard/or", label: "Ordres de réparation" },
+        { href: "/dashboard/rendez-vous/nouveau", label: "Planifier un rendez-vous" },
         { href: "/dashboard/rendez-vous", label: "Rendez-vous" },
         { href: "/dashboard/clients", label: "Clients" },
         { href: "/dashboard/stock", label: "Stock pièces" },

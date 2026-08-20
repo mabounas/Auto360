@@ -7,10 +7,17 @@ import type { NavItem } from "@/lib/nav";
 
 export function Sidebar({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
+
+  // Plusieurs entrées peuvent préfixer l'URL courante (« /rendez-vous » et
+  // « /rendez-vous/nouveau ») : seule la plus spécifique est mise en avant.
+  const hrefActif = items
+    .filter((i) => (i.href === "/dashboard" ? pathname === i.href : pathname.startsWith(i.href)))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+
   return (
     <nav className="flex flex-col gap-0.5 p-3">
       {items.map((item) => {
-        const active = item.href === "/dashboard" ? pathname === item.href : pathname.startsWith(item.href);
+        const active = item.href === hrefActif;
         return (
           <Link
             key={item.href}
