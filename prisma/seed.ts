@@ -30,7 +30,7 @@ async function main() {
   }
 
   // --- Compagnies et leurs points de service, avec coordonnées GPS ------
-  const sites = [];
+  const sites: { id: string; code: string }[] = [];
   for (const c of COMPAGNIES) {
     const compagnie = await prisma.compagnie.upsert({
       where: { code: c.code },
@@ -111,7 +111,7 @@ async function main() {
     { code: CodeService.CONTROLE_TECHNIQUE, nom: "Contrôle technique", description: "Préparation au contrôle technique.", duree: 30 },
     { code: CodeService.PIECES_RECHANGE, nom: "Pièces de rechange", description: "Retrait / commande de pièces.", duree: 15 },
   ];
-  const services = [];
+  const services: { id: string; code: CodeService; dureeEstimeeMin: number }[] = [];
   for (const s of serviceDefs) {
     const st = await prisma.serviceType.upsert({
       where: { code: s.code },

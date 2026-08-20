@@ -52,23 +52,25 @@ export async function getCreneauxDisponibles(siteId: string, serviceTypeId: stri
   const creneaux: Creneau[] = [];
   const debut = toMinutes(config.heureDebut);
   const fin = toMinutes(config.heureFin);
+  // Tous les créneaux de la journée sont renvoyés, y compris ceux qui sont complets :
+  // le client doit voir l'horaire exister et comprendre qu'il est déjà pris, plutôt
+  // que de le voir disparaître sans explication.
   for (let t = debut; t + config.dureeCreneauMin <= fin; t += config.dureeCreneauMin) {
     const heure = toHHMM(t);
     const pris = compteParCreneau.get(heure) ?? 0;
-    const placesRestantes = config.capaciteParCreneau - pris;
-    if (placesRestantes > 0) creneaux.push({ heure, placesRestantes });
+    creneaux.push({ heure, placesRestantes: Math.max(0, config.capaciteParCreneau - pris) });
   }
   return creneaux;
 }
 
-// Renvoie les jours du mois (à partir d'aujourd'hui) qui ont au moins un créneau libre.
+// Renvoie les jours à venir qui ont au moins un créneau encore libre.
 export async function getJoursDisponibles(siteId: string, serviceTypeId: string, depuis: Date, joursAScanner = 21) {
   const jours: string[] = [];
   for (let i = 0; i < joursAScanner; i++) {
     const d = new Date(depuis);
     d.setDate(d.getDate() + i);
     const creneaux = await getCreneauxDisponibles(siteId, serviceTypeId, d);
-    if (creneaux.length > 0) jours.push(d.toISOString().slice(0, 10));
+    if (creneaux.some((c) => c.placesRestantes > 0)) jours.push(d.toISOString().slice(0, 10));
   }
   return jours;
 }

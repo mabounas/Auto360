@@ -60,7 +60,8 @@ export default async function NouveauRendezVousPage() {
           id: s.id,
           nom: s.nom,
           ville: s.ville,
-          compagnie: s.compagnie.nom,
+          compagnieCode: s.compagnie.code,
+          compagnieNom: s.compagnie.nom,
           latitude: s.latitude,
           longitude: s.longitude,
         }))}

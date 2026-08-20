@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MapPin, Navigation, Phone, BadgeCheck, LoaderCircle, Building2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -80,6 +80,13 @@ export function CentresLocator({
     setMarque("");
     charger({ compagnie: code, ville, pos: position });
   }
+
+  // Le tri par proximité est proposé d'emblée : la position est demandée au premier
+  // rendu, la liste rendue côté serveur restant affichée si l'accès est refusé.
+  useEffect(() => {
+    localiserMoi();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function localiserMoi() {
     if (!("geolocation" in navigator)) {

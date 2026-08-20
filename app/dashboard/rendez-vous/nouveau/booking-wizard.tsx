@@ -14,7 +14,8 @@ type Site = {
   id: string;
   nom: string;
   ville: string;
-  compagnie: string;
+  compagnieCode: string;
+  compagnieNom: string;
   latitude: number | null;
   longitude: number | null;
 };
@@ -44,11 +45,20 @@ export function BookingWizard({
   const [error, setError] = useState<string | null>(null);
   const [maPosition, setMaPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [geoRefusee, setGeoRefusee] = useState(false);
+  const [compagnieFiltre, setCompagnieFiltre] = useState("");
 
-  // Les centres sont reclassés par éloignement dès que le client partage sa position.
+  // Enseignes réellement représentées parmi les centres proposés au client.
+  const compagnies = [...new Map(sites.map((s) => [s.compagnieCode, s.compagnieNom])).entries()].sort(
+    (a, b) => a[1].localeCompare(b[1], "fr")
+  );
+
+  // Filtre par enseigne, puis reclassement par éloignement dès que la position est connue.
+  const sitesFiltres = compagnieFiltre
+    ? sites.filter((s) => s.compagnieCode === compagnieFiltre)
+    : sites;
   const sitesAffiches = maPosition
-    ? trierParDistance(sites, maPosition.lat, maPosition.lng)
-    : sites.map((s) => ({ ...s, distanceKm: null as number | null }));
+    ? trierParDistance(sitesFiltres, maPosition.lat, maPosition.lng)
+    : sitesFiltres.map((s) => ({ ...s, distanceKm: null as number | null }));
 
   function localiserMoi() {
     if (!("geolocation" in navigator)) {
@@ -60,6 +70,14 @@ export function BookingWizard({
       () => setGeoRefusee(true),
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
     );
+  }
+
+  // Le tri par proximité est le comportement par défaut : on demande la position en
+  // arrivant sur le choix du centre, sans attendre une action de l'utilisateur. Si la
+  // permission est refusée, la liste reste simplement triée par ville.
+  function ouvrirEtapeCentre() {
+    setStep(2);
+    if (!maPosition && !geoRefusee) localiserMoi();
   }
 
   async function ouvrirEtapeCreneaux() {
@@ -161,7 +179,7 @@ export function BookingWizard({
               <Label>Motif (optionnel)</Label>
               <Textarea rows={2} value={motif} onChange={(e) => setMotif(e.target.value)} />
             </div>
-            <Button onClick={() => setStep(2)} disabled={!vehiculeId || !serviceTypeId}>
+            <Button onClick={ouvrirEtapeCentre} disabled={!vehiculeId || !serviceTypeId}>
               Continuer
             </Button>
           </div>
@@ -169,19 +187,49 @@ export function BookingWizard({
 
         {step === 2 && (
           <div className="space-y-4">
+            {compagnies.length > 1 && (
+              <div>
+                <Label htmlFor="compagnieFiltre">Enseigne</Label>
+                <Select
+                  id="compagnieFiltre"
+                  value={compagnieFiltre}
+                  onChange={(e) => {
+                    setCompagnieFiltre(e.target.value);
+                    setSiteId("");
+                  }}
+                >
+                  <option value="">
+                    Toutes les enseignes ({sites.length} centres)
+                  </option>
+                  {compagnies.map(([code, nom]) => (
+                    <option key={code} value={code}>
+                      {nom} ({sites.filter((s) => s.compagnieCode === code).length} centres)
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center justify-between gap-2">
               <Label>Centre de service</Label>
-              {!maPosition && !geoRefusee && (
+              {maPosition ? (
+                <span className="inline-flex items-center gap-1 text-xs text-muted">
+                  <Navigation size={13} className="text-accent-600" /> Classés par distance
+                </span>
+              ) : geoRefusee ? (
                 <button
                   type="button"
-                  onClick={localiserMoi}
+                  onClick={() => {
+                    setGeoRefusee(false);
+                    localiserMoi();
+                  }}
                   className="inline-flex items-center gap-1 text-xs font-medium text-accent-600"
                 >
                   <Navigation size={13} /> Trier par proximité
                 </button>
+              ) : (
+                <span className="text-xs text-muted">Localisation en cours…</span>
               )}
-              {maPosition && <span className="text-xs text-muted">Classés par distance</span>}
-              {geoRefusee && <span className="text-xs text-muted">Localisation indisponible</span>}
             </div>
             <div className="grid max-h-[420px] gap-2 overflow-y-auto sm:grid-cols-2">
               {sitesAffiches.map((s) => (
@@ -202,10 +250,15 @@ export function BookingWizard({
                     )}
                   </div>
                   <p className="text-xs text-muted">
-                    {s.ville} · {s.compagnie}
+                    {s.ville} · {s.compagnieNom}
                   </p>
                 </button>
               ))}
+              {sitesAffiches.length === 0 && (
+                <p className="text-sm text-muted">
+                  Aucun centre de cette enseigne ne prend en charge votre véhicule.
+                </p>
+              )}
             </div>
             <div className="flex gap-2">
               <Button variant="secondary" onClick={() => setStep(1)}>
@@ -249,20 +302,36 @@ export function BookingWizard({
                 {loading ? (
                   <p className="text-sm text-muted">Chargement…</p>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {creneaux.map((c) => (
-                      <button
-                        type="button"
-                        key={c.heure}
-                        onClick={() => setHeure(c.heure)}
-                        className={`rounded-lg border px-3 py-2 text-xs font-medium ${
-                          heure === c.heure ? "border-primary-700 bg-primary-50" : "border-border"
-                        }`}
-                      >
-                        {c.heure}
-                      </button>
-                    ))}
-                  </div>
+                  <>
+                    <div className="flex flex-wrap gap-2">
+                      {creneaux.map((c) => {
+                        const complet = c.placesRestantes <= 0;
+                        return (
+                          <button
+                            type="button"
+                            key={c.heure}
+                            disabled={complet}
+                            title={complet ? "Créneau déjà réservé" : undefined}
+                            onClick={() => setHeure(c.heure)}
+                            className={`rounded-lg border px-3 py-2 text-xs font-medium ${
+                              complet
+                                ? "cursor-not-allowed border-border bg-black/5 text-muted line-through opacity-60"
+                                : heure === c.heure
+                                  ? "border-primary-700 bg-primary-50"
+                                  : "border-border hover:border-primary-300"
+                            }`}
+                          >
+                            {c.heure}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {creneaux.some((c) => c.placesRestantes <= 0) && (
+                      <p className="text-xs text-muted">
+                        Les créneaux barrés sont déjà réservés pour ce service dans ce centre.
+                      </p>
+                    )}
+                  </>
                 )}
               </>
             )}
