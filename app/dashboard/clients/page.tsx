@@ -22,7 +22,11 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
             { user: { nom: { contains: q, mode: "insensitive" } } },
             { user: { prenom: { contains: q, mode: "insensitive" } } },
             { user: { email: { contains: q, mode: "insensitive" } } },
+            { user: { telephone: { contains: q } } },
             { vehicules: { some: { immatriculation: { contains: q, mode: "insensitive" } } } },
+            // Le numéro de châssis est souvent la seule référence dont dispose
+            // l'agent quand le client se présente sans papiers.
+            { vehicules: { some: { vin: { contains: q, mode: "insensitive" } } } },
           ],
         }
       : {},

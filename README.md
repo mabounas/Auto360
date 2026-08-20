@@ -135,6 +135,14 @@ Référence entre parenthèses : section du cahier des charges.
   à un dossier hors périmètre renvoie 404, et les actions serveur revérifient le périmètre
   au lieu de faire confiance à l'écran.
 
+  **Le client, lui, n'appartient à aucun centre** (§4.1 : base client unique multi-société et
+  multi-marque). Il se rend où il veut, quand il veut. Ce sont les **dossiers atelier** qui
+  sont cloisonnés, pas le référentiel : n'importe quel centre retrouve un client par son
+  numéro de châssis (VIN), son immatriculation, son nom ou son téléphone — même s'il n'y est
+  jamais venu — et peut enchaîner sur une réservation ou l'ouverture d'un ordre de réparation.
+  La fiche véhicule distingue les passages réalisés dans le centre courant de ceux effectués
+  ailleurs dans le réseau.
+
 ### Volontairement hors du présent périmètre
 
 Ces points du cahier des charges nécessitent des contrats ou services tiers et ne sont pas

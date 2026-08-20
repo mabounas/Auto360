@@ -45,6 +45,7 @@ export default async function NouveauRendezVousPage({
               { user: { telephone: { contains: q } } },
               { user: { email: { contains: q, mode: "insensitive" } } },
               { vehicules: { some: { immatriculation: { contains: q, mode: "insensitive" } } } },
+              { vehicules: { some: { vin: { contains: q, mode: "insensitive" } } } },
             ],
           }
         : {},
@@ -58,8 +59,9 @@ export default async function NouveauRendezVousPage({
         <div>
           <h1 className="text-2xl font-bold text-foreground">Prendre rendez-vous pour un client</h1>
           <p className="text-sm text-muted">
-            Recherchez le client par nom, téléphone, email ou immatriculation, puis renseignez sa
-            demande. Les disponibilités affichées sont celles que voit le client en ligne.
+            Recherchez le client par numéro de châssis, immatriculation, nom, téléphone ou email —
+            le référentiel couvre tout le réseau, même si le client n&apos;est jamais venu dans
+            votre centre. Les disponibilités affichées sont celles que voit le client en ligne.
           </p>
         </div>
         <ClientPicker

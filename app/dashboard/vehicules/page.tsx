@@ -1,12 +1,19 @@
+import Link from "next/link";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/app/generated/prisma/client";
 import { porteeParSiteId } from "@/lib/portee";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { AddVehiculeForm } from "./add-vehicule-form";
 
-export default async function VehiculesPage() {
+export default async function VehiculesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const session = await getSession();
   if (!session) return null;
 
@@ -67,26 +74,65 @@ export default async function VehiculesPage() {
     );
   }
 
-  // Vue staff : recherche véhicules / clients
-  // Le staff ne voit que les véhicules déjà passés dans un atelier de son périmètre.
-  const portee = porteeParSiteId(session);
-  const siteFilter =
-    Object.keys(portee).length === 0
-      ? {}
-      : { client: { ordresReparation: { some: portee } } };
+  // Vue staff — référentiel véhicules commun à tout le réseau (§4.1 : base client
+  // unique multi-société et multi-marque). Un client n'appartient à aucun centre :
+  // il peut se présenter dans n'importe lequel, qui doit pouvoir le retrouver par
+  // son numéro de châssis ou son immatriculation et enchaîner sur une réservation.
+  const { q } = await searchParams;
+  const recherche = q?.trim();
+
   const vehicules = await prisma.vehicule.findMany({
-    where: siteFilter,
-    include: { marque: true, client: { include: { user: true } } },
+    where: recherche
+      ? {
+          OR: [
+            { vin: { contains: recherche, mode: "insensitive" } },
+            { immatriculation: { contains: recherche, mode: "insensitive" } },
+            { modele: { contains: recherche, mode: "insensitive" } },
+            { client: { user: { nom: { contains: recherche, mode: "insensitive" } } } },
+            { client: { user: { prenom: { contains: recherche, mode: "insensitive" } } } },
+            { client: { user: { telephone: { contains: recherche } } } },
+          ],
+        }
+      : {},
+    include: {
+      marque: true,
+      client: { include: { user: true } },
+      ordresReparation: {
+        select: { id: true, siteId: true, createdAt: true, site: { select: { nom: true } } },
+        orderBy: { createdAt: "desc" },
+      },
+    },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
+
+  // Les dossiers atelier, eux, restent cloisonnés : on distingue ce que ce centre
+  // a déjà traité de l'historique réalisé ailleurs dans le réseau.
+  const portee = porteeParSiteId(session);
+  const monSiteId = "siteId" in portee ? portee.siteId : null;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Véhicules</h1>
-        <p className="text-sm text-muted">Parc véhicules des clients Auto360.</p>
+        <p className="text-sm text-muted">
+          Référentiel commun à tout le réseau : recherchez par numéro de châssis (VIN),
+          immatriculation, nom ou téléphone, même si le véhicule n&apos;est jamais venu chez vous.
+        </p>
       </div>
+
+      <form className="flex flex-wrap gap-2">
+        <input
+          name="q"
+          defaultValue={recherche}
+          placeholder="N° de châssis (VIN), immatriculation, nom ou téléphone…"
+          className="h-10 w-full max-w-md rounded-lg border border-border px-3 text-sm"
+        />
+        <Button type="submit" variant="secondary">
+          Rechercher
+        </Button>
+      </form>
+
       <Card>
         <CardContent className="overflow-x-auto p-0">
           <table className="w-full text-sm">
@@ -95,24 +141,65 @@ export default async function VehiculesPage() {
                 <th className="px-4 py-3">Client</th>
                 <th className="px-4 py-3">Véhicule</th>
                 <th className="px-4 py-3">Immatriculation</th>
-                <th className="px-4 py-3">Kilométrage</th>
+                <th className="px-4 py-3">N° de châssis (VIN)</th>
+                <th className="px-4 py-3">Historique atelier</th>
+                <th className="px-4 py-3">Action</th>
               </tr>
             </thead>
             <tbody>
-              {vehicules.map((v) => (
-                <tr key={v.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3">
-                    {v.client.user.prenom} {v.client.user.nom}
-                  </td>
-                  <td className="px-4 py-3">
-                    {v.marque.nom} {v.modele}
-                  </td>
-                  <td className="px-4 py-3">{v.immatriculation}</td>
-                  <td className="px-4 py-3">{v.kilometrage.toLocaleString("fr-FR")} km</td>
-                </tr>
-              ))}
+              {vehicules.map((v) => {
+                const chezMoi = monSiteId
+                  ? v.ordresReparation.filter((o) => o.siteId === monSiteId).length
+                  : v.ordresReparation.length;
+                const ailleurs = v.ordresReparation.length - chezMoi;
+                return (
+                  <tr key={v.id} className="border-b border-border last:border-0">
+                    <td className="px-4 py-3">
+                      {v.client.user.prenom} {v.client.user.nom}
+                      <span className="block text-xs text-muted">{v.client.user.telephone}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {v.marque.nom} {v.modele}
+                      <span className="block text-xs text-muted">
+                        {v.kilometrage.toLocaleString("fr-FR")} km
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">{v.immatriculation}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{v.vin}</td>
+                    <td className="px-4 py-3 text-xs">
+                      {chezMoi > 0 && (
+                        <Badge variant="success">
+                          {chezMoi} passage{chezMoi > 1 ? "s" : ""} ici
+                        </Badge>
+                      )}
+                      {ailleurs > 0 && (
+                        <Badge variant="neutral">
+                          {ailleurs} ailleurs dans le réseau
+                        </Badge>
+                      )}
+                      {v.ordresReparation.length === 0 && (
+                        <span className="text-muted">Jamais venu</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Button asChild size="sm" variant="secondary">
+                        <Link href={`/dashboard/rendez-vous/nouveau?client=${v.clientId}`}>
+                          Planifier
+                        </Link>
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+          {vehicules.length === 0 && (
+            <p className="p-6 text-sm text-muted">
+              {recherche
+                ? "Aucun véhicule ne correspond à cette recherche."
+                : "Lancez une recherche pour retrouver un véhicule."}
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

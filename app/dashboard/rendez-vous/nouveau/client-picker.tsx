@@ -36,7 +36,7 @@ export function ClientPicker({ q, clients }: { q: string; clients: ClientLigne[]
         <Input
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
-          placeholder="Nom, téléphone, email ou immatriculation…"
+          placeholder="N° de châssis (VIN), immatriculation, nom, téléphone…"
           className="max-w-sm flex-1"
         />
         <Button type="submit" variant="secondary">
