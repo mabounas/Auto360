@@ -66,10 +66,17 @@ Référence entre parenthèses : section du cahier des charges.
   immatriculation / kilométrage, segmentation, consentement loi 09-08, recherche staff par
   nom ou immatriculation.
 - **Prise de rendez-vous multicanal** (§4.2) — parcours guidé véhicule → service → centre →
-  créneau. **La disponibilité est calculée indépendamment par option de service** : chaque
-  couple site × service a sa propre configuration de capacité et de durée de créneau, donc
-  son propre calendrier. Bascule automatique en liste d'attente si le créneau est pris entre
-  l'affichage et la confirmation.
+  créneau, accessible au client en libre-service **comme au centre d'appel et à la
+  réception**, qui réservent au nom du client après l'avoir recherché (nom, téléphone,
+  email ou immatriculation). Le canal d'origine est tracé (WEB / TELEPHONE / AGENCE).
+  **La disponibilité est calculée indépendamment par option de service** : chaque couple
+  site × service a sa propre configuration de capacité et de durée de créneau, donc son
+  propre calendrier. Bascule automatique en liste d'attente si la dernière position est
+  prise entre l'affichage et la confirmation.
+- **Positions par service** — chaque service dispose d'un nombre de postes (baies, ponts,
+  agents) qui détermine combien de véhicules sont pris en charge simultanément sur un
+  créneau. Le client voit le nombre de positions restantes ; le créneau devient barré et
+  non sélectionnable une fois complet. Réglable par site depuis `/dashboard/capacites`.
 - **Diagnostic** (§4.2bis) — service à part entière avec ses propres créneaux ; rapport
   multi-points (moteur, freinage, direction, niveaux, pneumatiques, électrique), anomalies et
   liste des pièces à remplacer, transmis au pricing **sans ressaisie**.
