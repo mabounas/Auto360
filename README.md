@@ -45,18 +45,27 @@ npm run dev
 
 Mot de passe commun : `Passw0rd!`
 
-| Email | Profil |
-| --- | --- |
-| `client@auto360.ma` | Client particulier (1 véhicule) |
-| `admin@auto360.ma` | Administrateur |
-| `direction@auto360.ma` | Direction groupe (multi-sites) |
-| `centreappel@auto360.ma` | Centre d'appel |
-| `sav.casa@auto360.ma` | Responsable SAV — Casablanca |
-| `accueil.casa@auto360.ma` | Conseiller / réceptionnaire — Casablanca |
-| `chefatelier.casa@auto360.ma` | Chef d'atelier — Casablanca |
-| `technicien.casa@auto360.ma` | Technicien — Casablanca |
-| `pieces.casa@auto360.ma` | Gestionnaire pièces — Casablanca |
-| `pricing.casa@auto360.ma` | Pricing / chiffrage — Casablanca |
+La page de connexion propose ces comptes en un clic (panneau désactivable via
+`NEXT_PUBLIC_DEMO_LOGIN=false`). Ils sont regroupés par périmètre, de sorte que le
+cloisonnement se démontre en passant d'un compte à l'autre.
+
+| Email | Profil | Périmètre |
+| --- | --- | --- |
+| `client@auto360.ma` | Client particulier | Ses propres véhicules |
+| `sav.casa@auto360.ma` | Responsable SAV | Auto Hall Lalla Yacout |
+| `accueil.casa@auto360.ma` | Réceptionnaire | Auto Hall Lalla Yacout |
+| `chefatelier.casa@auto360.ma` | Chef d'atelier | Auto Hall Lalla Yacout |
+| `technicien.casa@auto360.ma` | Technicien | Auto Hall Lalla Yacout |
+| `pricing.casa@auto360.ma` | Pricing / chiffrage | Auto Hall Lalla Yacout |
+| `pieces.casa@auto360.ma` | Gestionnaire pièces | Auto Hall Lalla Yacout |
+| `sav.siege@auto360.ma` | Responsable SAV | Auto Hall Siège |
+| `accueil.siege@auto360.ma` | Réceptionnaire | Auto Hall Siège |
+| `sav.renault@auto360.ma` | Responsable SAV | Renault Casablanca |
+| `direction@auto360.ma` | Direction | Toute l'enseigne Auto Hall |
+| `admin.autohall@auto360.ma` | Administrateur | Toute l'enseigne Auto Hall |
+| `direction.renault@auto360.ma` | Direction | Toute l'enseigne Renault |
+| `centreappel@auto360.ma` | Centre d'appel | Toute l'enseigne Auto Hall |
+| `admin@auto360.ma` | Administrateur global | Toutes les enseignes |
 
 ## Périmètre couvert
 
@@ -111,8 +120,20 @@ Référence entre parenthèses : section du cahier des charges.
   les centres distribuant la marque du véhicule et sait les classer par proximité.
 - **Forfaits à prix fixe** (§4.15) — forfaits Best-Cost par segment d'âge du véhicule et
   forfaits carrosserie.
-- **RBAC** (§5.2) — 10 profils ; les rôles rattachés à un site ne voient que leur périmètre,
-  direction / admin / centre d'appel ont la vision consolidée.
+- **RBAC et cloisonnement** (§5.2) — 10 profils métier, et surtout un **périmètre de
+  visibilité déduit de l'affectation du collaborateur**, pas de son rôle :
+
+  | Affectation | Ce que le collaborateur voit |
+  | --- | --- |
+  | Un site | Les dossiers de ce point de service uniquement |
+  | Une enseigne (sans site) | Tous les sites de son enseigne, jamais ceux d'une autre |
+  | Ni l'un ni l'autre | Toutes les enseignes — administrateur global |
+
+  Un directeur d'agence Auto Hall ne voit donc pas l'activité d'une autre agence Auto Hall,
+  et l'admin d'Auto Hall ne voit pas le réseau Renault. Le filtre est centralisé dans
+  `lib/portee.ts` et appliqué à toutes les requêtes du back-office ; l'accès direct par URL
+  à un dossier hors périmètre renvoie 404, et les actions serveur revérifient le périmètre
+  au lieu de faire confiance à l'écran.
 
 ### Volontairement hors du présent périmètre
 
