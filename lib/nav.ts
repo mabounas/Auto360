@@ -40,6 +40,7 @@ export function navForRole(role: Role): NavItem[] {
         ...common,
         { href: "/dashboard/or", label: "Ordres de réparation" },
         { href: "/dashboard/rendez-vous", label: "Planning atelier" },
+        { href: "/dashboard/capacites", label: "Positions par service" },
       ];
     case Role.GESTIONNAIRE_PIECES:
       return [...common, { href: "/dashboard/stock", label: "Stock pièces" }, { href: "/dashboard/or", label: "Ordres de réparation" }];
@@ -53,6 +54,7 @@ export function navForRole(role: Role): NavItem[] {
         { href: "/dashboard/reclamations", label: "Réclamations" },
         { href: "/dashboard/satisfaction", label: "Satisfaction" },
         { href: "/dashboard/stock", label: "Stock pièces" },
+        { href: "/dashboard/capacites", label: "Positions par service" },
       ];
     case Role.DIRECTION_GROUPE:
       return [
@@ -73,6 +75,7 @@ export function navForRole(role: Role): NavItem[] {
         { href: "/dashboard/reclamations", label: "Réclamations" },
         { href: "/dashboard/satisfaction", label: "Satisfaction" },
         { href: "/dashboard/sites", label: "Sites & marques" },
+        { href: "/dashboard/capacites", label: "Positions par service" },
         { href: "/dashboard/utilisateurs", label: "Utilisateurs" },
         { href: "/dashboard/catalogue", label: "Catalogue" },
       ];

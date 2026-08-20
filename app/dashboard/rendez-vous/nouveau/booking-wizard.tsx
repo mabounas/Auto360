@@ -38,7 +38,9 @@ export function BookingWizard({
   const [motif, setMotif] = useState("");
   const [jours, setJours] = useState<string[]>([]);
   const [date, setDate] = useState<string | null>(null);
-  const [creneaux, setCreneaux] = useState<{ heure: string; placesRestantes: number }[]>([]);
+  const [creneaux, setCreneaux] = useState<
+    { heure: string; placesRestantes: number; capacite: number }[]
+  >([]);
   const [heure, setHeure] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ statut: string } | null>(null);
@@ -306,14 +308,19 @@ export function BookingWizard({
                     <div className="flex flex-wrap gap-2">
                       {creneaux.map((c) => {
                         const complet = c.placesRestantes <= 0;
+                        const tendu = !complet && c.placesRestantes === 1 && c.capacite > 1;
                         return (
                           <button
                             type="button"
                             key={c.heure}
                             disabled={complet}
-                            title={complet ? "Créneau déjà réservé" : undefined}
+                            title={
+                              complet
+                                ? `Complet — les ${c.capacite} position(s) de ce créneau sont réservées`
+                                : `${c.placesRestantes} position(s) disponible(s) sur ${c.capacite}`
+                            }
                             onClick={() => setHeure(c.heure)}
-                            className={`rounded-lg border px-3 py-2 text-xs font-medium ${
+                            className={`flex min-w-[74px] flex-col items-center rounded-lg border px-3 py-2 text-xs font-medium ${
                               complet
                                 ? "cursor-not-allowed border-border bg-black/5 text-muted line-through opacity-60"
                                 : heure === c.heure
@@ -322,15 +329,22 @@ export function BookingWizard({
                             }`}
                           >
                             {c.heure}
+                            <span
+                              className={`mt-0.5 text-[10px] font-normal no-underline ${
+                                complet ? "text-muted" : tendu ? "text-warning" : "text-success"
+                              }`}
+                            >
+                              {complet ? "complet" : `${c.placesRestantes} dispo.`}
+                            </span>
                           </button>
                         );
                       })}
                     </div>
-                    {creneaux.some((c) => c.placesRestantes <= 0) && (
-                      <p className="text-xs text-muted">
-                        Les créneaux barrés sont déjà réservés pour ce service dans ce centre.
-                      </p>
-                    )}
+                    <p className="text-xs text-muted">
+                      Chaque créneau indique le nombre de positions encore libres. Un créneau dont
+                      toutes les positions sont réservées apparaît barré et n&apos;est plus
+                      sélectionnable.
+                    </p>
                   </>
                 )}
               </>

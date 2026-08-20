@@ -101,16 +101,26 @@ async function main() {
   if (orphelines.count > 0) console.log(`  ✕ ${orphelines.count} marque(s) sans site supprimée(s)`);
 
   // --- Options de service ----------------------------------------------
-  const serviceDefs: { code: CodeService; nom: string; description: string; duree: number }[] = [
-    { code: CodeService.DIAGNOSTIC, nom: "Diagnostic panne", description: "Diagnostic électronique multi-points.", duree: 45 },
-    { code: CodeService.ENTRETIEN_REVISION, nom: "Entretien / révision", description: "Vidange, filtres, révisions périodiques.", duree: 60 },
-    { code: CodeService.MECANIQUE_ELECTRICITE, nom: "Mécanique / électricité", description: "Freins, embrayage, distribution, électrique.", duree: 90 },
-    { code: CodeService.CLIMATISATION_CONFORT, nom: "Climatisation & confort", description: "Recharge clim, contrôle d'étanchéité.", duree: 45 },
-    { code: CodeService.PNEUMATIQUE, nom: "Pneumatique", description: "Montage, équilibrage, remplacement pneus.", duree: 30 },
-    { code: CodeService.CARROSSERIE_ESTHETIQUE, nom: "Carrosserie / esthétique", description: "Chocs, débosselage, peinture.", duree: 180 },
-    { code: CodeService.CONTROLE_TECHNIQUE, nom: "Contrôle technique", description: "Préparation au contrôle technique.", duree: 30 },
-    { code: CodeService.PIECES_RECHANGE, nom: "Pièces de rechange", description: "Retrait / commande de pièces.", duree: 15 },
+  // `positions` = nombre de postes de travail (baies, ponts, agents) que le site
+  // affecte à ce service. C'est ce qui détermine combien de véhicules peuvent être
+  // pris en charge simultanément sur un même créneau horaire.
+  const serviceDefs: {
+    code: CodeService;
+    nom: string;
+    description: string;
+    duree: number;
+    positions: number;
+  }[] = [
+    { code: CodeService.DIAGNOSTIC, nom: "Diagnostic panne", description: "Diagnostic électronique multi-points.", duree: 45, positions: 2 },
+    { code: CodeService.ENTRETIEN_REVISION, nom: "Entretien / révision", description: "Vidange, filtres, révisions périodiques.", duree: 60, positions: 3 },
+    { code: CodeService.MECANIQUE_ELECTRICITE, nom: "Mécanique / électricité", description: "Freins, embrayage, distribution, électrique.", duree: 90, positions: 3 },
+    { code: CodeService.CLIMATISATION_CONFORT, nom: "Climatisation & confort", description: "Recharge clim, contrôle d'étanchéité.", duree: 45, positions: 1 },
+    { code: CodeService.PNEUMATIQUE, nom: "Pneumatique", description: "Montage, équilibrage, remplacement pneus.", duree: 30, positions: 2 },
+    { code: CodeService.CARROSSERIE_ESTHETIQUE, nom: "Carrosserie / esthétique", description: "Chocs, débosselage, peinture.", duree: 180, positions: 1 },
+    { code: CodeService.CONTROLE_TECHNIQUE, nom: "Contrôle technique", description: "Préparation au contrôle technique.", duree: 30, positions: 2 },
+    { code: CodeService.PIECES_RECHANGE, nom: "Pièces de rechange", description: "Retrait / commande de pièces.", duree: 15, positions: 4 },
   ];
+  const positionsParService = new Map(serviceDefs.map((s) => [s.code, s.positions]));
   const services: { id: string; code: CodeService; dureeEstimeeMin: number }[] = [];
   for (const s of serviceDefs) {
     const st = await prisma.serviceType.upsert({
@@ -133,7 +143,7 @@ async function main() {
         heureDebut: "08:00",
         heureFin: jour === 6 ? "13:00" : "18:00",
         dureeCreneauMin: service.dureeEstimeeMin,
-        capaciteParCreneau: service.code === CodeService.CARROSSERIE_ESTHETIQUE ? 1 : 2,
+        capaciteParCreneau: positionsParService.get(service.code) ?? 1,
       }))
     )
   );
@@ -141,7 +151,19 @@ async function main() {
     data: disponibilites,
     skipDuplicates: true,
   });
-  if (nbDispos > 0) console.log(`  ${nbDispos} créneaux de disponibilité configurés`);
+  if (nbDispos > 0) console.log(`  ${nbDispos} créneaux de disponibilité créés`);
+
+  // `createMany` ignore les lignes déjà présentes : sans cette passe, une évolution du
+  // nombre de positions ne s'appliquerait qu'aux nouveaux sites. On réaligne donc
+  // explicitement chaque service, sur tous les sites.
+  for (const service of services) {
+    const positions = positionsParService.get(service.code) ?? 1;
+    const { count } = await prisma.disponibiliteConfig.updateMany({
+      where: { serviceTypeId: service.id },
+      data: { capaciteParCreneau: positions, dureeCreneauMin: service.dureeEstimeeMin },
+    });
+    console.log(`  ${service.code} : ${positions} position(s) — ${count} configurations alignées`);
+  }
 
   // --- Forfaits Best-Cost -------------------------------------------
   const forfaitsData = [

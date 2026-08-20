@@ -1,7 +1,9 @@
 import { prisma } from "./prisma";
 import { StatutRdv } from "@/app/generated/prisma/client";
 
-export type Creneau = { heure: string; placesRestantes: number };
+// `capacite` = nombre de positions (postes / agents) affectées à ce service sur ce site.
+// `placesRestantes` en déduit ce qu'il reste après les rendez-vous déjà pris.
+export type Creneau = { heure: string; placesRestantes: number; capacite: number };
 
 function toMinutes(hhmm: string) {
   const [h, m] = hhmm.split(":").map(Number);
@@ -58,7 +60,11 @@ export async function getCreneauxDisponibles(siteId: string, serviceTypeId: stri
   for (let t = debut; t + config.dureeCreneauMin <= fin; t += config.dureeCreneauMin) {
     const heure = toHHMM(t);
     const pris = compteParCreneau.get(heure) ?? 0;
-    creneaux.push({ heure, placesRestantes: Math.max(0, config.capaciteParCreneau - pris) });
+    creneaux.push({
+      heure,
+      capacite: config.capaciteParCreneau,
+      placesRestantes: Math.max(0, config.capaciteParCreneau - pris),
+    });
   }
   return creneaux;
 }
