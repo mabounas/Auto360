@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/app/generated/prisma/client";
-import { canSeeAllSites } from "@/lib/rbac";
+import { porteeParRelation } from "@/lib/portee";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
@@ -12,9 +12,7 @@ export default async function SatisfactionPage() {
   if (!session) redirect("/login");
   if (session.role === Role.CLIENT) redirect("/dashboard");
 
-  const where = canSeeAllSites(session.role)
-    ? {}
-    : { ordreReparation: { siteId: session.siteId ?? "__none__" } };
+  const where = porteeParRelation(session, "ordreReparation");
 
   const enquetes = await prisma.enqueteSatisfaction.findMany({
     where,

@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
     nom: user.nom,
     prenom: user.prenom,
     siteId: user.siteId,
+    compagnieId: user.compagnieId,
   });
 
   const res = NextResponse.json({ ok: true });

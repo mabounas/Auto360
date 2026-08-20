@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/app/generated/prisma/client";
-import { canSeeAllSites } from "@/lib/rbac";
+import { porteeSites } from "@/lib/portee";
 import { oneOf } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CapacitesEditor } from "./capacites-editor";
@@ -21,7 +21,7 @@ export default async function CapacitesPage({
   }
 
   const sites = await prisma.site.findMany({
-    where: canSeeAllSites(session.role) ? {} : { id: session.siteId ?? "__none__" },
+    where: porteeSites(session),
     include: { compagnie: true },
     orderBy: [{ compagnie: { nom: "asc" } }, { ville: "asc" }, { nom: "asc" }],
   });

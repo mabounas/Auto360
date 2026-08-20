@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/app/generated/prisma/client";
-import { canSeeAllSites } from "@/lib/rbac";
+import { porteeSites } from "@/lib/portee";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NouvelOrForm } from "./nouvel-or-form";
 import { oneOf } from "@/lib/utils";
@@ -20,9 +20,7 @@ export default async function NouvelOrPage() {
       orderBy: { createdAt: "desc" },
       take: 200,
     }),
-    canSeeAllSites(session.role)
-      ? prisma.site.findMany({ orderBy: { ville: "asc" } })
-      : prisma.site.findMany({ where: { id: session.siteId ?? "__none__" } }),
+    prisma.site.findMany({ where: porteeSites(session), orderBy: { ville: "asc" } }),
   ]);
 
   return (

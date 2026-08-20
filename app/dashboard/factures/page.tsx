@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/app/generated/prisma/client";
-import { canSeeAllSites } from "@/lib/rbac";
+import { porteeParRelation } from "@/lib/portee";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, formatMAD } from "@/lib/utils";
@@ -19,8 +19,8 @@ export default async function FacturesPage() {
   if (isClient) {
     const client = await prisma.clientProfile.findUnique({ where: { userId: session.userId } });
     where = { clientId: client?.id ?? "__none__" };
-  } else if (!canSeeAllSites(session.role)) {
-    where = { ordreReparation: { siteId: session.siteId ?? "__none__" } };
+  } else {
+    where = porteeParRelation(session, "ordreReparation");
   }
 
   const factures = await prisma.facture.findMany({

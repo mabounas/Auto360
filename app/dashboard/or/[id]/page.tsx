@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role, StatutOR, StatutDevis } from "@/app/generated/prisma/client";
-import { canSeeAllSites } from "@/lib/rbac";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, formatDateTime, formatMAD, oneOf } from "@/lib/utils";
@@ -48,9 +47,14 @@ export default async function OrDetailPage({ params }: { params: Promise<{ id: s
     prisma.forfait.findMany({ where: { actif: true }, orderBy: { nom: "asc" } }),
   ]);
 
-  // Scoping : le client ne voit que ses dossiers ; le staff mono-site que ceux de son site
-  if (session.role === Role.CLIENT && or.client.userId !== session.userId) notFound();
-  if (session.role !== Role.CLIENT && !canSeeAllSites(session.role) && or.siteId !== session.siteId) notFound();
+  // Cloisonnement : le client ne voit que ses dossiers ; le collaborateur, uniquement
+  // ceux de son périmètre (son site, ou son enseigne s'il n'est pas rattaché à un site).
+  if (session.role === Role.CLIENT) {
+    if (or.client.userId !== session.userId) notFound();
+  } else {
+    if (session.siteId && or.siteId !== session.siteId) notFound();
+    if (session.compagnieId && or.site.compagnieId !== session.compagnieId) notFound();
+  }
 
   const etapeCourante = ETAPES.findIndex((e) => e.statut === or.statut);
 

@@ -46,19 +46,25 @@ enum PreferenceContact {
   WHATSAPP
 }
 
+// Périmètre de visibilité d'un collaborateur, du plus étroit au plus large :
+//   siteId renseigné      → ne voit que ce point de service
+//   compagnieId seul      → voit tous les sites de son enseigne
+//   ni l'un ni l'autre    → administrateur global, voit toutes les enseignes
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String     @id @default(cuid())
+  email        String     @unique
   telephone    String?
   passwordHash String
   role         Role
   nom          String
   prenom       String
-  actif        Boolean  @default(true)
-  siteId       String? // staff rattaché à un site ; null = accès multi-site (direction/admin/centre d'appel)
-  site         Site?    @relation(fields: [siteId], references: [id])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  actif        Boolean    @default(true)
+  siteId       String?
+  site         Site?      @relation(fields: [siteId], references: [id])
+  compagnieId  String?
+  compagnie    Compagnie? @relation(fields: [compagnieId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   clientProfile        ClientProfile?
   orClotures            OrdreReparation[]      @relation("ORChefEquipe")
@@ -69,6 +75,7 @@ model User {
 
   @@index([role])
   @@index([siteId])
+  @@index([compagnieId])
 }
 
 model ClientProfile {
@@ -108,6 +115,7 @@ model Compagnie {
   createdAt   DateTime @default(now())
 
   sites Site[]
+  users User[]
 }
 
 model Site {

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role, StatutOR, StatutDevis } from "@/app/generated/prisma/client";
-import { canSeeAllSites } from "@/lib/rbac";
+import { porteeParSiteId, porteeParRelation, porteeSites, libellePortee } from "@/lib/portee";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMAD, oneOf } from "@/lib/utils";
 
@@ -13,7 +13,7 @@ export default async function KpisPage() {
     redirect("/dashboard");
   }
 
-  const siteFilter = canSeeAllSites(session.role) ? {} : { siteId: session.siteId ?? "__none__" };
+  const siteFilter = porteeParSiteId(session);
 
   const [ors, factures, devis, enquetes, sites] = await Promise.all([
     prisma.ordreReparation.findMany({
@@ -21,19 +21,24 @@ export default async function KpisPage() {
       select: { id: true, siteId: true, statut: true, createdAt: true, clotureAt: true, clientId: true },
     }),
     prisma.facture.findMany({
-      where: canSeeAllSites(session.role) ? {} : { ordreReparation: { siteId: session.siteId ?? "__none__" } },
+      where: porteeParRelation(session, "ordreReparation"),
       select: { montantTTC: true, ordreReparation: { select: { siteId: true } } },
     }),
     prisma.devis.findMany({
-      where: canSeeAllSites(session.role) ? {} : { ordreReparation: { siteId: session.siteId ?? "__none__" } },
+      where: porteeParRelation(session, "ordreReparation"),
       select: { statut: true },
     }),
     prisma.enqueteSatisfaction.findMany({
-      where: canSeeAllSites(session.role) ? {} : { ordreReparation: { siteId: session.siteId ?? "__none__" } },
+      where: porteeParRelation(session, "ordreReparation"),
       select: { npsScore: true, csatScore: true, reponduAt: true },
     }),
-    prisma.site.findMany({ orderBy: { ville: "asc" } }),
+    // Le comparatif inter-sites est déjà restreint au périmètre du collaborateur.
+    prisma.site.findMany({ where: porteeSites(session), orderBy: { ville: "asc" } }),
   ]);
+
+  const nomCompagnie = session.compagnieId
+    ? (await prisma.compagnie.findUnique({ where: { id: session.compagnieId } }))?.nom
+    : null;
 
   const caTotal = factures.reduce((sum, f) => sum + Number(f.montantTTC), 0);
   const orClotures = ors.filter((o) => o.statut === StatutOR.CLOTURE);
@@ -59,29 +64,25 @@ export default async function KpisPage() {
   const detracteurs = repondues.filter((e) => e.npsScore! <= 6).length;
   const nps = repondues.length ? Math.round(((promoteurs - detracteurs) / repondues.length) * 100) : null;
 
-  // Comparatif inter-sites (§4.12)
-  const parSite = sites
-    .filter((s) => canSeeAllSites(session.role) || s.id === session.siteId)
-    .map((s) => {
-      const orsSite = ors.filter((o) => o.siteId === s.id);
-      const caSite = factures
-        .filter((f) => f.ordreReparation.siteId === s.id)
-        .reduce((sum, f) => sum + Number(f.montantTTC), 0);
-      return {
-        site: s,
-        nbOr: orsSite.length,
-        enCours: orsSite.filter((o) => !oneOf(o.statut, StatutOR.CLOTURE, StatutOR.ANNULE)).length,
-        ca: caSite,
-      };
-    });
+  // Comparatif inter-sites (§4.12), limité au périmètre du collaborateur
+  const parSite = sites.map((s) => {
+    const orsSite = ors.filter((o) => o.siteId === s.id);
+    const caSite = factures
+      .filter((f) => f.ordreReparation.siteId === s.id)
+      .reduce((sum, f) => sum + Number(f.montantTTC), 0);
+    return {
+      site: s,
+      nbOr: orsSite.length,
+      enCours: orsSite.filter((o) => !oneOf(o.statut, StatutOR.CLOTURE, StatutOR.ANNULE)).length,
+      ca: caSite,
+    };
+  });
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">KPIs &amp; pilotage SAV</h1>
-        <p className="text-sm text-muted">
-          {canSeeAllSites(session.role) ? "Vision consolidée multi-sites." : "Indicateurs de votre site."}
-        </p>
+        <p className="text-sm text-muted">{libellePortee(session, nomCompagnie)}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

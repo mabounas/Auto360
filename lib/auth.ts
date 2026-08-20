@@ -10,7 +10,9 @@ export type SessionPayload = {
   role: Role;
   nom: string;
   prenom: string;
+  // Périmètre de visibilité : site précis, sinon enseigne entière, sinon tout le parc.
   siteId: string | null;
+  compagnieId: string | null;
 };
 
 export async function hashPassword(password: string) {

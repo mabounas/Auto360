@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role, StatutOR, StatutDevis, StatutReclamation } from "@/app/generated/prisma/client";
-import { canSeeAllSites } from "@/lib/rbac";
+import { porteeParSiteId, porteeParRelation, libellePortee } from "@/lib/portee";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -123,7 +123,7 @@ export default async function DashboardHome() {
   }
 
   // --- Tableau de bord staff ---------------------------------------------
-  const siteFilter = canSeeAllSites(session.role) ? {} : { siteId: session.siteId ?? "__none__" };
+  const siteFilter = porteeParSiteId(session);
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const todayEnd = new Date();
@@ -134,8 +134,15 @@ export default async function DashboardHome() {
     prisma.ordreReparation.count({
       where: { ...siteFilter, statut: { in: [StatutOR.ACCUEIL, StatutOR.DIAGNOSTIC_EN_COURS, StatutOR.EN_REPARATION, StatutOR.DEVIS_EN_ATTENTE] } },
     }),
-    prisma.devis.count({ where: { statut: StatutDevis.PUBLIE, ordreReparation: siteFilter.siteId ? { siteId: siteFilter.siteId } : undefined } }),
-    prisma.reclamation.count({ where: { statut: { in: [StatutReclamation.OUVERT, StatutReclamation.EN_COURS] }, ...(siteFilter.siteId ? { siteId: siteFilter.siteId } : {}) } }),
+    prisma.devis.count({
+      where: { statut: StatutDevis.PUBLIE, ...porteeParRelation(session, "ordreReparation") },
+    }),
+    prisma.reclamation.count({
+      where: {
+        statut: { in: [StatutReclamation.OUVERT, StatutReclamation.EN_COURS] },
+        ...siteFilter,
+      },
+    }),
     prisma.stockPiece.findMany({ where: siteFilter, select: { quantiteDisponible: true, seuilAlerte: true } }),
   ]);
   const stockAlertes = stocks.filter((s) => s.quantiteDisponible <= s.seuilAlerte).length;
@@ -147,15 +154,17 @@ export default async function DashboardHome() {
     include: { client: { include: { user: true } }, vehicule: true, site: true },
   });
 
+  const nomCompagnie = session.compagnieId
+    ? (await prisma.compagnie.findUnique({ where: { id: session.compagnieId } }))?.nom
+    : null;
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">
           Bonjour {session.prenom} {session.nom}
         </h1>
-        <p className="text-sm text-muted">
-          {canSeeAllSites(session.role) ? "Vue consolidée tous sites" : "Vue de votre site"}
-        </p>
+        <p className="text-sm text-muted">{libellePortee(session, nomCompagnie)}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">

@@ -1,7 +1,7 @@
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/app/generated/prisma/client";
-import { canSeeAllSites } from "@/lib/rbac";
+import { porteeParSiteId } from "@/lib/portee";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
 import { AddVehiculeForm } from "./add-vehicule-form";
@@ -68,7 +68,12 @@ export default async function VehiculesPage() {
   }
 
   // Vue staff : recherche véhicules / clients
-  const siteFilter = canSeeAllSites(session.role) ? {} : { client: { ordresReparation: { some: { siteId: session.siteId ?? "__none__" } } } };
+  // Le staff ne voit que les véhicules déjà passés dans un atelier de son périmètre.
+  const portee = porteeParSiteId(session);
+  const siteFilter =
+    Object.keys(portee).length === 0
+      ? {}
+      : { client: { ordresReparation: { some: portee } } };
   const vehicules = await prisma.vehicule.findMany({
     where: siteFilter,
     include: { marque: true, client: { include: { user: true } } },

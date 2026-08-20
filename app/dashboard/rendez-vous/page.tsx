@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/app/generated/prisma/client";
-import { canSeeAllSites } from "@/lib/rbac";
+import { porteeParSiteId } from "@/lib/portee";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -75,7 +75,7 @@ export default async function RendezVousPage({
   const dayEnd = new Date(dateStr);
   dayEnd.setHours(23, 59, 59, 999);
 
-  const siteFilter = canSeeAllSites(session.role) ? {} : { siteId: session.siteId ?? "__none__" };
+  const siteFilter = porteeParSiteId(session);
 
   const rdvs = await prisma.rendezVous.findMany({
     where: { ...siteFilter, dateHeure: { gte: dayStart, lte: dayEnd } },

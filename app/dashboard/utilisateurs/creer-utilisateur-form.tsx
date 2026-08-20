@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { creerUtilisateur } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/input";
-import { ROLE_LABELS, MULTI_SITE_ROLES, STAFF_ROLES } from "@/lib/rbac";
+import { ROLE_LABELS, STAFF_ROLES } from "@/lib/rbac";
 import { Role } from "@/lib/enums";
 
 export function CreerUtilisateurForm({ sites }: { sites: { id: string; label: string }[] }) {
@@ -14,7 +14,6 @@ export function CreerUtilisateurForm({ sites }: { sites: { id: string; label: st
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const besoinSite = !MULTI_SITE_ROLES.includes(role);
 
   return (
     <form
@@ -57,19 +56,20 @@ export function CreerUtilisateurForm({ sites }: { sites: { id: string; label: st
           ))}
         </Select>
       </div>
-      <div>
-        <Label htmlFor="siteId">Site</Label>
-        <Select id="siteId" name="siteId" disabled={!besoinSite} defaultValue={sites[0]?.id}>
-          {besoinSite ? (
-            sites.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))
-          ) : (
-            <option value="">Tous sites</option>
-          )}
+      <div className="sm:col-span-2">
+        <Label htmlFor="siteId">Périmètre de visibilité</Label>
+        <Select id="siteId" name="siteId" defaultValue={sites[0]?.id ?? ""}>
+          {sites.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.label}
+            </option>
+          ))}
+          <option value="">Toute l&apos;enseigne (tous les sites)</option>
         </Select>
+        <p className="mt-1 text-xs text-muted">
+          Rattaché à un site, le collaborateur ne verra que les dossiers de ce point de service.
+          Sans site, il accède à l&apos;ensemble des sites de son enseigne.
+        </p>
       </div>
       <div>
         <Label htmlFor="password">Mot de passe initial</Label>

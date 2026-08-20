@@ -223,26 +223,60 @@ async function main() {
   });
 
   // --- Utilisateurs staff -----------------------------------------------
+  // Le périmètre découle de l'affectation, pas du rôle :
+  //   siteId     → le collaborateur ne voit que ce point de service
+  //   compagnieId→ il voit toute son enseigne
+  //   aucun      → administrateur global, toutes enseignes confondues
   const staffPw = await hash("Passw0rd!");
-  const staffUsers: { email: string; role: Role; nom: string; prenom: string; siteId?: string }[] = [
+
+  const autoHall = await prisma.compagnie.findUniqueOrThrow({ where: { code: "AUTOHALL" } });
+  const renault = await prisma.compagnie.findUniqueOrThrow({ where: { code: "RENAULT" } });
+
+  // Deux agences Auto Hall distinctes, pour démontrer le cloisonnement entre sites.
+  const casa1 = await prisma.site.findUniqueOrThrow({ where: { code: "CASA01" } });
+  const casa2 = await prisma.site.findUniqueOrThrow({ where: { code: "CASA02" } });
+  const renaultCasa = await prisma.site.findUniqueOrThrow({ where: { code: "RNL-CASA01" } });
+
+  const staffUsers: {
+    email: string;
+    role: Role;
+    nom: string;
+    prenom: string;
+    siteId?: string;
+    compagnieId?: string;
+  }[] = [
+    // Administration globale — voit toutes les enseignes
     { email: "admin@auto360.ma", role: Role.ADMIN, nom: "Admin", prenom: "Auto360" },
-    { email: "direction@auto360.ma", role: Role.DIRECTION_GROUPE, nom: "Bennani", prenom: "Yassine" },
-    { email: "centreappel@auto360.ma", role: Role.CENTRE_APPEL, nom: "Idrissi", prenom: "Salma" },
-    { email: "sav.casa@auto360.ma", role: Role.RESPONSABLE_SAV, nom: "Amrani", prenom: "Karim", siteId: sites[0].id },
-    { email: "accueil.casa@auto360.ma", role: Role.RECEPTIONNAIRE, nom: "El Fassi", prenom: "Nadia", siteId: sites[0].id },
-    { email: "chefatelier.casa@auto360.ma", role: Role.CHEF_ATELIER, nom: "Tazi", prenom: "Hicham", siteId: sites[0].id },
-    { email: "technicien.casa@auto360.ma", role: Role.TECHNICIEN, nom: "Benjelloun", prenom: "Omar", siteId: sites[0].id },
-    { email: "pieces.casa@auto360.ma", role: Role.GESTIONNAIRE_PIECES, nom: "Chraibi", prenom: "Rania", siteId: sites[0].id },
-    { email: "pricing.casa@auto360.ma", role: Role.PRICING, nom: "Ouazzani", prenom: "Sara", siteId: sites[0].id },
+
+    // Administration au niveau d'une enseigne — voit tous ses sites, pas les concurrents
+    { email: "direction@auto360.ma", role: Role.DIRECTION_GROUPE, nom: "Bennani", prenom: "Yassine", compagnieId: autoHall.id },
+    { email: "admin.autohall@auto360.ma", role: Role.ADMIN, nom: "Sekkat", prenom: "Leila", compagnieId: autoHall.id },
+    { email: "direction.renault@auto360.ma", role: Role.DIRECTION_GROUPE, nom: "Berrada", prenom: "Mehdi", compagnieId: renault.id },
+    { email: "centreappel@auto360.ma", role: Role.CENTRE_APPEL, nom: "Idrissi", prenom: "Salma", compagnieId: autoHall.id },
+
+    // Agence Auto Hall n°1 (Lalla Yacout) — ne voit que ce site
+    { email: "sav.casa@auto360.ma", role: Role.RESPONSABLE_SAV, nom: "Amrani", prenom: "Karim", siteId: casa1.id, compagnieId: autoHall.id },
+    { email: "accueil.casa@auto360.ma", role: Role.RECEPTIONNAIRE, nom: "El Fassi", prenom: "Nadia", siteId: casa1.id, compagnieId: autoHall.id },
+    { email: "chefatelier.casa@auto360.ma", role: Role.CHEF_ATELIER, nom: "Tazi", prenom: "Hicham", siteId: casa1.id, compagnieId: autoHall.id },
+    { email: "technicien.casa@auto360.ma", role: Role.TECHNICIEN, nom: "Benjelloun", prenom: "Omar", siteId: casa1.id, compagnieId: autoHall.id },
+    { email: "pieces.casa@auto360.ma", role: Role.GESTIONNAIRE_PIECES, nom: "Chraibi", prenom: "Rania", siteId: casa1.id, compagnieId: autoHall.id },
+    { email: "pricing.casa@auto360.ma", role: Role.PRICING, nom: "Ouazzani", prenom: "Sara", siteId: casa1.id, compagnieId: autoHall.id },
+
+    // Agence Auto Hall n°2 (Siège) — cloisonnée de la n°1
+    { email: "sav.siege@auto360.ma", role: Role.RESPONSABLE_SAV, nom: "Alaoui", prenom: "Nabil", siteId: casa2.id, compagnieId: autoHall.id },
+    { email: "accueil.siege@auto360.ma", role: Role.RECEPTIONNAIRE, nom: "Bouzidi", prenom: "Imane", siteId: casa2.id, compagnieId: autoHall.id },
+
+    // Agence Renault — autre enseigne
+    { email: "sav.renault@auto360.ma", role: Role.RESPONSABLE_SAV, nom: "Cherkaoui", prenom: "Anas", siteId: renaultCasa.id, compagnieId: renault.id },
   ];
-  const createdStaff: Record<string, string> = {};
+
   for (const u of staffUsers) {
-    const user = await prisma.user.upsert({
+    await prisma.user.upsert({
       where: { email: u.email },
       create: { ...u, passwordHash: staffPw, telephone: "+212 6 00 00 00 00" },
-      update: {},
+      // Le périmètre est réaligné à chaque seed : c'est le référentiel qui fait foi.
+      update: { siteId: u.siteId ?? null, compagnieId: u.compagnieId ?? null, role: u.role },
     });
-    createdStaff[u.email] = user.id;
   }
 
   // --- Client de démo + véhicule ---------------------------------------
@@ -291,18 +325,28 @@ async function main() {
     update: {},
   });
 
-  console.log("Seed terminé.");
-  console.log("Comptes de démo (mot de passe: Passw0rd!) :");
-  console.log("  client@auto360.ma            — Client");
-  console.log("  admin@auto360.ma              — Administrateur");
-  console.log("  direction@auto360.ma          — Direction groupe");
-  console.log("  centreappel@auto360.ma        — Centre d'appel");
-  console.log("  sav.casa@auto360.ma           — Responsable SAV (Casablanca)");
-  console.log("  accueil.casa@auto360.ma       — Réceptionnaire (Casablanca)");
-  console.log("  chefatelier.casa@auto360.ma   — Chef d'atelier (Casablanca)");
-  console.log("  technicien.casa@auto360.ma    — Technicien (Casablanca)");
-  console.log("  pieces.casa@auto360.ma        — Gestionnaire pièces (Casablanca)");
-  console.log("  pricing.casa@auto360.ma       — Pricing / chiffrage (Casablanca)");
+  console.log("\nSeed terminé. Comptes de démo (mot de passe: Passw0rd!) :");
+  console.log("\n  Périmètre global (toutes enseignes)");
+  console.log("    admin@auto360.ma              — Administrateur global");
+  console.log("\n  Périmètre enseigne");
+  console.log("    admin.autohall@auto360.ma     — Admin Auto Hall (tous ses sites)");
+  console.log("    direction@auto360.ma          — Direction Auto Hall");
+  console.log("    direction.renault@auto360.ma  — Direction Renault Maroc");
+  console.log("    centreappel@auto360.ma        — Centre d'appel Auto Hall");
+  console.log("\n  Périmètre site — Auto Hall Lalla Yacout (agence 1)");
+  console.log("    sav.casa@auto360.ma           — Responsable SAV");
+  console.log("    accueil.casa@auto360.ma       — Réceptionnaire");
+  console.log("    chefatelier.casa@auto360.ma   — Chef d'atelier");
+  console.log("    technicien.casa@auto360.ma    — Technicien");
+  console.log("    pieces.casa@auto360.ma        — Gestionnaire pièces");
+  console.log("    pricing.casa@auto360.ma       — Pricing / chiffrage");
+  console.log("\n  Périmètre site — Auto Hall Siège (agence 2)");
+  console.log("    sav.siege@auto360.ma          — Responsable SAV");
+  console.log("    accueil.siege@auto360.ma      — Réceptionnaire");
+  console.log("\n  Périmètre site — Renault Casablanca");
+  console.log("    sav.renault@auto360.ma        — Responsable SAV");
+  console.log("\n  Client");
+  console.log("    client@auto360.ma             — Youssef Mansouri");
 }
 
 main()

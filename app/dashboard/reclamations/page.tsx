@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/app/generated/prisma/client";
-import { canSeeAllSites } from "@/lib/rbac";
+import { porteeParSiteId } from "@/lib/portee";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/utils";
@@ -31,8 +31,8 @@ export default async function ReclamationsPage() {
     });
     where = { clientId: client?.id ?? "__none__" };
     ordresClient = client?.ordresReparation ?? [];
-  } else if (!canSeeAllSites(session.role)) {
-    where = { siteId: session.siteId ?? "__none__" };
+  } else {
+    where = porteeParSiteId(session);
   }
 
   const reclamations = await prisma.reclamation.findMany({

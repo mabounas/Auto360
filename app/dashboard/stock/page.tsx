@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/app/generated/prisma/client";
-import { canSeeAllSites } from "@/lib/rbac";
+import { porteeParSiteId } from "@/lib/portee";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatMAD, oneOf } from "@/lib/utils";
@@ -13,7 +13,7 @@ export default async function StockPage() {
   if (!session) redirect("/login");
   if (session.role === Role.CLIENT) redirect("/dashboard");
 
-  const siteFilter = canSeeAllSites(session.role) ? {} : { siteId: session.siteId ?? "__none__" };
+  const siteFilter = porteeParSiteId(session);
 
   const stocks = await prisma.stockPiece.findMany({
     where: siteFilter,
